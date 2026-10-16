@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Multiples grid</title>
 <style>
   :root {
     --bg: #fbfaf7;
     --panel: rgba(255,255,255,.82);
+    --panel-solid: #ffffff;
     --panel-brd: #e3ded4;
     --ink: #24211d;
     --ink-dim: #6d675e;
@@ -15,6 +16,7 @@
     --b: #2563eb;
     --ab: #7c3aed;
     --lcm: #f59e0b;
+    --w: #475569;
     --cell: #ffffff;
     --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
   }
@@ -22,6 +24,7 @@
     :root {
       --bg: #101319;
       --panel: rgba(24,28,36,.82);
+      --panel-solid: #181c24;
       --panel-brd: #2b313d;
       --ink: #e7eaf0;
       --ink-dim: #99a1b0;
@@ -29,130 +32,228 @@
       --b: #3b82f6;
       --ab: #8b5cf6;
       --lcm: #fbbf24;
+      --w: #64748b;
       --cell: #181c24;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
     }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; }
+  html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg);
     color: var(--ink);
     font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;   /* no double-tap zoom when tapping buttons fast */
   }
-  main {
-    max-width: 980px; margin: 0 auto; padding: 20px 16px 32px;
-    display: flex; flex-direction: column; gap: 14px;
+  button, label, summary { -webkit-touch-callout: none; }
+
+  /* ---- page layout ----
+     portrait: header, pickers, grid (fills the rest), row length, legend — top to bottom.
+     landscape: grid on the left, everything else in a sidebar on the right.
+     The sidebar is `display: contents` in portrait so its children join the column directly. */
+  .app {
+    position: relative;
+    height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+             max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    max-width: 1100px; margin: 0 auto;
   }
-  h1 { margin: 0; font-size: 15px; font-weight: 650; }
+  .side { display: contents; }
+  .top     { order: 0; }
+  .pickers { order: 1; }
+  .stage   { order: 2; }
+  .rowlen  { order: 3; }
+  .info    { order: 4; }
+
+  @media (orientation: landscape) and (min-width: 700px) {
+    .app { flex-direction: row; max-width: none; gap: 12px; }
+    .side {
+      display: flex; flex-direction: column; gap: 10px;
+      width: 340px; flex: none; overflow-y: auto; overscroll-behavior: contain;
+    }
+    .pickers { flex-direction: column; }
+    .opts { position: static !important; max-height: none !important; }
+  }
+
+  .top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+  .back {
+    color: var(--ink-dim); text-decoration: none; font-size: 20px; line-height: 1;
+    width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; flex: none;
+  }
+  .back:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  h1 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   h1 span { color: var(--ink-dim); font-weight: 450; }
-  .back { color: var(--ink-dim); font-size: 12.5px; text-decoration: none; }
-  .back:hover { color: var(--ink); }
+  @media (max-width: 560px) { h1 span { display: none; } }
+  .gear {
+    font: inherit; font-size: 13px; color: var(--ink-dim); cursor: pointer; flex: none;
+    padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--panel-brd); background: var(--panel);
+  }
+  .gear:hover, .gear[aria-expanded=true] { color: var(--ink); }
+  .gear[aria-expanded=true] { box-shadow: var(--shadow); }
 
   .panel {
     background: var(--panel);
     border: 1px solid var(--panel-brd); border-radius: 14px;
     box-shadow: var(--shadow);
-    padding: 12px 14px;
+    padding: 10px 14px;
   }
 
+  /* ---- the cartoony + / − buttons ---- */
+  .pm {
+    --c2: color-mix(in srgb, var(--c) 62%, #000);
+    width: 48px; height: 48px; flex: none; padding: 0;
+    display: grid; place-items: center; cursor: pointer;
+    border-radius: 999px; border: 0;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 60%);
+    box-shadow: 0 4px 0 var(--c2), 0 6px 12px rgba(0,0,0,.18);
+    transition: transform .07s, box-shadow .07s;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .pm svg { width: 26px; height: 26px; stroke: #fff; stroke-width: 5.5; stroke-linecap: round; fill: none;
+            filter: drop-shadow(0 1.5px 0 rgba(0,0,0,.25)); }
+  .pm:active, .pm.held { transform: translateY(3px); box-shadow: 0 1px 0 var(--c2), 0 2px 4px rgba(0,0,0,.18); }
+  .pm:focus-visible { outline: 3px solid color-mix(in srgb, var(--c) 45%, transparent); outline-offset: 2px; }
+
   /* ---- the two number pickers ---- */
-  .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pickers { display: flex; gap: 10px; }
   .picker {
-    display: flex; flex-direction: column; gap: 8px;
-    border-radius: 12px; padding: 10px 12px;
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 6px;
+    border-radius: 14px; padding: 6px 8px;
     background: color-mix(in srgb, var(--c) 9%, transparent);
     border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
-    touch-action: pan-y;
   }
   .picker.a { --c: var(--a); }
   .picker.b { --c: var(--b); }
-  .picker .lab { font-size: 12px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; }
-  .swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
-  .stepper { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-  .stepper button {
-    font: inherit; font-size: 18px; line-height: 1; color: var(--ink);
-    width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
-    background: var(--panel); border: 1px solid var(--panel-brd);
-    user-select: none; flex: none;
-  }
-  .stepper button:hover { border-color: var(--c); }
-  .stepper input {
-    font: inherit; font-size: 28px; font-weight: 700; letter-spacing: -.02em;
+  .picker input[type=number] {
+    font: inherit; font-size: 30px; font-weight: 800; letter-spacing: -.02em;
     font-variant-numeric: tabular-nums; text-align: center; color: var(--c);
-    width: 100%; min-width: 0; padding: 0;
-    background: transparent; border: 0; border-bottom: 2px solid transparent;
+    flex: 1; width: 100%; min-width: 0; padding: 0;
+    background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
     -moz-appearance: textfield; appearance: textfield;
   }
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  .stepper input:focus { outline: none; border-bottom-color: var(--c); }
-  .picker input[type=range] { width: 100%; margin: 0; accent-color: var(--c); }
+  .picker input[type=number]:focus { outline: none; border-bottom-color: var(--c); }
+  .bump { animation: bump .18s ease-out; }
+  @keyframes bump { 40% { transform: scale(1.18); } }
+
+  /* a colour dot you can tap to pick that number's colour */
+  .dot {
+    position: relative; flex: none; width: 28px; height: 28px; border-radius: 999px;
+    background: var(--c); cursor: pointer;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 1px 3px rgba(0,0,0,.2);
+  }
+  .dot.ab { --c: var(--ab); }
+  .dot input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+  .dot::after {   /* little paint-drop hint */
+    content: ""; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 999px;
+    background: conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #a855f7, #ef4444);
+    box-shadow: 0 0 0 2px var(--panel-solid);
+  }
+  @media (max-width: 400px) { .picker .dot { display: none; } .pm { width: 44px; height: 44px; } }
 
   /* ---- options ---- */
-  .more { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin: -4px 0; }
-  .more summary {
-    list-style: none; cursor: pointer; user-select: none;
-    font-size: 12.5px; color: var(--ink-dim);
-    padding: 4px 12px; border-radius: 999px;
-    border: 1px solid var(--panel-brd); background: var(--panel);
+  .opts {
+    position: absolute; z-index: 5; top: calc(max(10px, env(safe-area-inset-top)) + 44px);
+    right: max(12px, env(safe-area-inset-right)); width: min(440px, calc(100% - 24px));
+    max-height: 70vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+    background: var(--panel-solid);
   }
-  .more summary::-webkit-details-marker { display: none; }
-  .more summary:hover, .more[open] summary { color: var(--ink); }
-  .more[open] summary { box-shadow: var(--shadow); }
-  .more > .panel { align-self: stretch; }
-  .opts { display: flex; flex-direction: column; gap: 9px; }
+  .opts[hidden] { display: none; }
   .opt { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
-  .opt > .k { color: var(--ink-dim); font-size: 12px; width: 70px; flex: none; }
-  .seg { display: flex; flex-wrap: wrap; gap: 2px; background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 12px; padding: 2px; }
+  .opt > .k { color: var(--ink-dim); font-size: 12px; width: 62px; flex: none; }
+  .seg { display: flex; flex-wrap: wrap; gap: 2px; background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 12px; padding: 3px; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
   .seg label, .mini {
-    font: inherit; font-size: 12.5px; color: var(--ink);
-    padding: 4px 10px; border-radius: 10px; cursor: pointer; user-select: none; white-space: nowrap;
+    font: inherit; font-size: 13px; color: var(--ink);
+    padding: 7px 12px; border-radius: 10px; cursor: pointer; user-select: none; white-space: nowrap;
     background: transparent; border: 0;
   }
   .seg label:hover, .mini:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
-  .seg input:checked + label { background: var(--panel); box-shadow: var(--shadow); font-weight: 600; }
+  .seg input:checked + label { background: var(--panel-solid); box-shadow: var(--shadow); font-weight: 600; }
   .seg input:focus-visible + label { outline: 2px solid var(--b); }
-  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; user-select: none; }
-  .chk input { margin: 0; accent-color: var(--ab); }
-  .opt input[type=range] { width: 120px; margin: 0; accent-color: var(--ink-dim); }
-  .numbox {
-    font: inherit; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--ink);
-    width: 58px; padding: 2px 6px; text-align: right;
-    background: color-mix(in srgb, var(--ink) 5%, transparent);
-    border: 1px solid transparent; border-radius: 7px;
-    -moz-appearance: textfield; appearance: textfield;
-  }
-  .numbox:focus { outline: none; border-color: var(--ink-dim); }
-  .axis { font-size: 12px; color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chk { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; user-select: none; padding: 4px 0; }
+  .chk input { margin: 0; width: 18px; height: 18px; accent-color: var(--ab); }
+  .colors { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .colors .c { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+  .colors .c.a { --c: var(--a); } .colors .c.b { --c: var(--b); }
 
   /* ---- the canvas ---- */
   .stage {
-    position: relative; height: clamp(320px, 64vh, 900px);
+    position: relative; flex: 1; min-height: 220px; min-width: 0;
     border: 1px solid var(--panel-brd); border-radius: 14px; overflow: hidden;
     background: var(--bg);
   }
   #c { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
   #c.dragging { cursor: grabbing; }
   .readout {
-    position: absolute; left: 10px; top: 10px; pointer-events: none;
+    position: absolute; left: 10px; top: 10px; pointer-events: none; max-width: calc(100% - 20px);
     background: var(--panel); border: 1px solid var(--panel-brd); border-radius: 9px;
-    padding: 3px 9px; font-size: 12.5px; font-variant-numeric: tabular-nums;
+    padding: 4px 10px; font-size: 13px; font-variant-numeric: tabular-nums;
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   }
   .readout:empty { display: none; }
-  .hint { color: var(--ink-dim); font-size: 12px; text-align: center; margin-top: -6px; }
-  .tip { color: var(--ink-dim); font-size: 12px; margin: -3px 0 0 80px; }
-  @media (max-width: 520px) { .tip { margin-left: 0; } }
-  .hint kbd, .tip kbd {
-    font: inherit; font-size: 11px; border: 1px solid var(--panel-brd);
-    border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; background: var(--panel);
+  .readout.hint { color: var(--ink-dim); }
+  .fit {
+    position: absolute; right: 10px; bottom: 10px;
+    font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--panel-brd); background: var(--panel); box-shadow: var(--shadow);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+
+  /* ---- row length ---- */
+  .rowlen { --c: var(--w); display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; }
+  .rl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rl-head .k { font-weight: 650; font-size: 13.5px; }
+  .rl-head .seg { margin-left: auto; }
+  .rl-head .mini { padding: 6px 11px; }
+  .rl-ctl { display: flex; align-items: center; gap: 10px; }
+  .numbox {
+    font: inherit; font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink);
+    width: 62px; padding: 4px 8px; text-align: center;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border: 1px solid transparent; border-radius: 8px;
+    -moz-appearance: textfield; appearance: textfield;
+  }
+  .numbox:focus { outline: none; border-color: var(--ink-dim); }
+
+  /* custom slider: tap anywhere to jump, drag anywhere to slide, value shown in the knob */
+  .slider { position: relative; flex: 1; height: 62px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .slider:focus { outline: none; }
+  .slider .track {
+    position: absolute; left: 22px; right: 22px; top: 25px; height: 14px; margin-top: -7px;
+    border-radius: 999px; background: color-mix(in srgb, var(--ink) 12%, transparent);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.15);
+  }
+  .slider .fill {
+    position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%);
+    border-radius: inherit; background: var(--c);
+  }
+  .slider .knob {
+    position: absolute; top: 25px; left: calc(22px + var(--p) * (100% - 44px));
+    width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 999px;
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: #fff;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 65%, #fff), var(--c) 60%);
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--c) 62%, #000), 0 5px 12px rgba(0,0,0,.2);
+    transition: transform .08s;
+  }
+  .slider.active .knob { transform: scale(1.12); }
+  .slider:focus-visible .knob { outline: 3px solid color-mix(in srgb, var(--c) 45%, transparent); outline-offset: 2px; }
+  .slider .ends {
+    position: absolute; left: 22px; right: 22px; bottom: 0;
+    display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-dim); pointer-events: none;
   }
 
   /* ---- legend ---- */
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+  .info { padding: 8px 14px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; }
   .legend .item { display: flex; align-items: center; gap: 7px; }
   .legend b { font-variant-numeric: tabular-nums; }
   .chip { width: 16px; height: 16px; border-radius: 4px; background-color: var(--cell); }
@@ -176,107 +277,110 @@
   .legend[data-scheme=split] .a  { background-color: var(--a); }
   .legend[data-scheme=split] .b  { background-color: var(--b); }
   .legend[data-scheme=split] .ab { background-image: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); }
-  .note { margin-top: 8px; color: var(--ink-dim); font-size: 12.5px; }
+  .note { margin-top: 6px; color: var(--ink-dim); font-size: 12.5px; }
   .note b { color: var(--ink); font-variant-numeric: tabular-nums; }
   .note .l { color: var(--ink); background: color-mix(in srgb, var(--lcm) 30%, transparent); border-radius: 4px; padding: 0 4px; }
 </style>
 </head>
 <body>
-<main>
-  <div>
-    <a class="back" href="./">← home</a>
-    <h1>Multiples <span>· pick two numbers, see where they meet</span></h1>
-  </div>
-
-  <div class="pickers">
-    <div class="picker a" id="pa">
-      <span class="lab"><span class="swatch"></span>a</span>
-      <div class="stepper">
-        <button data-d="-1" aria-label="decrease a">−</button>
-        <input type="number" min="1" max="999" value="3" inputmode="numeric" aria-label="a">
-        <button data-d="1" aria-label="increase a">+</button>
-      </div>
-      <input type="range" min="1" max="50" value="3" aria-label="a slider">
-    </div>
-    <div class="picker b" id="pb">
-      <span class="lab"><span class="swatch"></span>b</span>
-      <div class="stepper">
-        <button data-d="-1" aria-label="decrease b">−</button>
-        <input type="number" min="1" max="999" value="4" inputmode="numeric" aria-label="b">
-        <button data-d="1" aria-label="increase b">+</button>
-      </div>
-      <input type="range" min="1" max="50" value="4" aria-label="b slider">
-    </div>
-  </div>
-
-  <details class="more">
-  <summary>⚙ Options</summary>
-  <div class="panel opts">
-    <div class="opt">
-      <span class="k">colors</span>
-      <div class="seg">
-        <input type="radio" name="scheme" id="s-hatch" value="hatch" checked><label for="s-hatch">Crosshatch</label>
-        <input type="radio" name="scheme" id="s-purple" value="purple"><label for="s-purple">Stripes + purple</label>
-        <input type="radio" name="scheme" id="s-alt" value="alt"><label for="s-alt">Red/blue stripes</label>
-        <input type="radio" name="scheme" id="s-solid" value="solid"><label for="s-solid">Solid</label>
-        <input type="radio" name="scheme" id="s-split" value="split"><label for="s-split">Split</label>
-      </div>
-    </div>
-    <div class="opt">
-      <span class="k">start at</span>
-      <div class="seg">
-        <input type="radio" name="start" id="st1" value="1" checked><label for="st1">1</label>
-        <input type="radio" name="start" id="st0" value="0"><label for="st0">0</label>
-      </div>
-    </div>
-    <div class="opt">
-      <span class="k">row length</span>
-      <input type="range" id="width" min="1" max="120" value="10" aria-label="row length slider">
-      <input type="number" class="numbox" id="wbox" min="1" value="10" aria-label="row length">
-      <div class="seg">
-        <button class="mini" data-w="10">10</button>
-        <button class="mini" data-w="a">= a</button>
-        <button class="mini" data-w="b">= b</button>
-        <button class="mini" data-w="lcm">= lcm</button>
-      </div>
-    </div>
-    <div class="opt">
-      <span class="k">zoom</span>
-      <span class="axis">x <input type="range" id="zx" min="10" max="70" step="0.5" aria-label="zoom x"></span>
-      <span class="axis">y <input type="range" id="zy" min="10" max="70" step="0.5" aria-label="zoom y"></span>
-      <label class="chk"><input type="checkbox" id="zlink" checked> link</label>
-      <div class="seg"><button class="mini" id="fit">Fit first 100</button></div>
-    </div>
-    <div class="tip">
-      <kbd>shift</kbd>+scroll stretches x only, <kbd>alt</kbd>+scroll y only.
-      On touch, pinch sideways or up-and-down.
-    </div>
-    <div class="opt">
-      <span class="k">show</span>
-      <label class="chk"><input type="checkbox" id="o-num" checked> numbers</label>
-      <label class="chk"><input type="checkbox" id="o-ring" checked> ring overlaps</label>
-      <label class="chk"><input type="checkbox" id="o-focus"> only overlaps</label>
-      <label class="chk"><input type="checkbox" id="o-lcm" checked> mark lcm</label>
-    </div>
-  </div>
-  </details>
-
+<div class="app" id="app">
   <div class="stage" id="stage">
     <canvas id="c"></canvas>
-    <div class="readout" id="readout"></div>
+    <div class="readout hint" id="readout">drag to move · pinch or ctrl+scroll to zoom · tap a square</div>
+    <button class="fit" id="fit" title="fit the rows to the screen">⤢ fit</button>
   </div>
-  <div class="hint">drag to move · scroll or pinch to zoom</div>
 
-  <div class="panel">
-    <div class="legend" id="legend" data-scheme="hatch">
-      <span class="item"><span class="chip a"></span>multiples of <b id="la">3</b></span>
-      <span class="item"><span class="chip b"></span>multiples of <b id="lb">4</b></span>
-      <span class="item"><span class="chip ab"></span>both</span>
-      <span class="item" id="llcm"><span class="chip ab lcm"></span>lcm = <b id="ll">12</b></span>
+  <div class="side">
+    <div class="top">
+      <a class="back" href="./" aria-label="home">←</a>
+      <h1>Multiples <span>· pick two numbers, see where they meet</span></h1>
+      <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
     </div>
-    <div class="note" id="note"></div>
+
+    <div class="panel opts" id="opts" hidden>
+      <div class="opt">
+        <span class="k">colors</span>
+        <div class="colors">
+          <span class="c a"><span class="dot"><input type="color" data-k="a" aria-label="color for a"></span>a</span>
+          <span class="c b"><span class="dot"><input type="color" data-k="b" aria-label="color for b"></span>b</span>
+          <span class="c"><span class="dot ab"><input type="color" data-k="ab" aria-label="color for both"></span>both</span>
+          <button class="mini" id="creset">reset</button>
+        </div>
+      </div>
+      <div class="opt">
+        <span class="k">pattern</span>
+        <div class="seg">
+          <input type="radio" name="scheme" id="s-hatch" value="hatch" checked><label for="s-hatch">Crosshatch</label>
+          <input type="radio" name="scheme" id="s-purple" value="purple"><label for="s-purple">Stripes + both</label>
+          <input type="radio" name="scheme" id="s-alt" value="alt"><label for="s-alt">Stripes</label>
+          <input type="radio" name="scheme" id="s-solid" value="solid"><label for="s-solid">Solid</label>
+          <input type="radio" name="scheme" id="s-split" value="split"><label for="s-split">Split</label>
+        </div>
+      </div>
+      <div class="opt">
+        <span class="k">start at</span>
+        <div class="seg">
+          <input type="radio" name="start" id="st1" value="1" checked><label for="st1">1</label>
+          <input type="radio" name="start" id="st0" value="0"><label for="st0">0</label>
+        </div>
+      </div>
+      <div class="opt">
+        <span class="k">show</span>
+        <label class="chk"><input type="checkbox" id="o-num" checked> numbers</label>
+        <label class="chk"><input type="checkbox" id="o-ring" checked> ring overlaps</label>
+        <label class="chk"><input type="checkbox" id="o-focus"> only overlaps</label>
+        <label class="chk"><input type="checkbox" id="o-lcm" checked> mark lcm</label>
+      </div>
+    </div>
+
+    <div class="pickers">
+      <div class="picker a" id="pa">
+        <span class="dot" title="pick a color"><input type="color" data-k="a" aria-label="color for a"></span>
+        <button class="pm" data-d="-1" aria-label="decrease a"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="999" value="3" inputmode="numeric" aria-label="a">
+        <button class="pm" data-d="1" aria-label="increase a"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+      <div class="picker b" id="pb">
+        <span class="dot" title="pick a color"><input type="color" data-k="b" aria-label="color for b"></span>
+        <button class="pm" data-d="-1" aria-label="decrease b"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="999" value="4" inputmode="numeric" aria-label="b">
+        <button class="pm" data-d="1" aria-label="increase b"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+    </div>
+
+    <div class="panel rowlen">
+      <div class="rl-head">
+        <span class="k">row length</span>
+        <input type="number" class="numbox" id="wbox" min="1" max="999" value="10" inputmode="numeric" aria-label="row length">
+        <div class="seg">
+          <button class="mini" data-w="10">10</button>
+          <button class="mini" data-w="a">= a</button>
+          <button class="mini" data-w="b">= b</button>
+          <button class="mini" data-w="lcm">= lcm</button>
+        </div>
+      </div>
+      <div class="rl-ctl">
+        <button class="pm" id="wminus" aria-label="shorter rows"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <div class="slider" id="wslider" role="slider" tabindex="0" aria-label="row length" aria-valuemin="1">
+          <div class="track"><div class="fill"></div></div>
+          <div class="knob" id="wknob">10</div>
+          <div class="ends"><span>1</span><span id="wmax"></span></div>
+        </div>
+        <button class="pm" id="wplus" aria-label="longer rows"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+    </div>
+
+    <div class="panel info">
+      <div class="legend" id="legend" data-scheme="hatch">
+        <span class="item"><span class="chip a"></span>multiples of <b id="la">3</b></span>
+        <span class="item"><span class="chip b"></span>multiples of <b id="lb">4</b></span>
+        <span class="item"><span class="chip ab"></span>both</span>
+        <span class="item" id="llcm"><span class="chip ab lcm"></span>lcm = <b id="ll">12</b></span>
+      </div>
+      <div class="note" id="note"></div>
+    </div>
   </div>
-</main>
+</div>
 
 <script>
 (() => {
@@ -287,12 +391,15 @@
   const $ = id => document.getElementById(id);
 
   const MIN_CELL = 2, MAX_CELL = 160;     // cell size limits in CSS px
+  const FIT_CELL = 90;                    // biggest cell "fit" will pick
   const MARGIN = 14;                      // breathing room around the grid edge
+  const SL_MAX = 60;                      // right end of the row-length slider (the box takes bigger values)
   const st = {
     a: 3, b: 4, start: 1, w: 10,
     scheme: 'hatch', nums: true, ring: true, focus: false, markLcm: true,
     cw: 40, ch: 40,       // cell width / height in CSS px
     px: 0, py: 0,         // the (column, row) shown at the bottom-left corner of the view
+    fitted: true,         // view is "rows fill the width" — keep it that way on resize
     hover: null
   };
 
@@ -301,12 +408,50 @@
   let col = {};          // colors read from CSS
   let pats = {};         // stripe patterns
 
+  // ---- user-picked colors (kept in this browser only) ----------------------------
+  const CKEYS = ['a', 'b', 'ab'];
+  let custom = {};
+  try { custom = JSON.parse(localStorage.getItem('multiples.colors')) || {}; } catch (e) { custom = {}; }
+  function applyCustom() {
+    const rs = document.documentElement.style;
+    for (const k of CKEYS) custom[k] ? rs.setProperty('--' + k, custom[k]) : rs.removeProperty('--' + k);
+    try { localStorage.setItem('multiples.colors', JSON.stringify(custom)); } catch (e) {}
+    readColors(); req();
+  }
+  function syncColorInputs() {
+    document.querySelectorAll('input[type=color]').forEach(i => { i.value = toHex(col[i.dataset.k]); });
+  }
+  document.querySelectorAll('input[type=color]').forEach(i => i.addEventListener('input', () => {
+    custom[i.dataset.k] = i.value; applyCustom();
+  }));
+  $('creset').addEventListener('click', () => { custom = {}; applyCustom(); });
+
+  // '#abc' / '#aabbcc' / 'rgb(…)' -> [r, g, b]
+  function rgb(c) {
+    c = (c || '').trim();
+    let m = /^#([0-9a-f]{3})$/i.exec(c);
+    if (m) c = '#' + [...m[1]].map(x => x + x).join('');
+    m = /^#([0-9a-f]{6})/i.exec(c);
+    if (m) { const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+    m = /rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/.exec(c);
+    return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
+  }
+  const toHex = c => '#' + rgb(c).map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  const lum = c => {
+    const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+    return .2126 * r + .7152 * g + .0722 * b;
+  };
+  // white numbers on dark fills, dark numbers on light ones (so a yellow pick stays readable)
+  const textOn = L => L > .3 ? '#1c1917' : '#fff';
+
   // ---- colors and stripe patterns --------------------------------------------
   function readColors() {
     const cs = getComputedStyle(document.documentElement);
     for (const k of ['bg', 'panel-brd', 'ink', 'ink-dim', 'a', 'b', 'ab', 'lcm', 'cell'])
       col[k] = cs.getPropertyValue('--' + k).trim();
-    buildPatterns();
+    col.ta = textOn(lum(col.a)); col.tb = textOn(lum(col.b)); col.tab = textOn(lum(col.ab));
+    col.tsplit = textOn((lum(col.a) + lum(col.b)) / 2);
+    buildPatterns(); syncColorInputs();
   }
   function tile(draw) {
     const T = 9, S = Math.round(T * dpr);
@@ -344,31 +489,31 @@
   function clampPan() {
     const minX = -MARGIN / st.cw, minY = -MARGIN / st.ch;
     const maxX = Math.max(minX, st.w - (W - MARGIN) / st.cw);
-    st.px = clamp(st.px, minX, maxX);
+    // a row narrower than the view sits in the middle; a wider one can slide side to side
+    st.px = st.w * st.cw <= W - 2 * MARGIN ? -(W - st.w * st.cw) / 2 / st.cw : clamp(st.px, minX, maxX);
     st.py = clamp(st.py, minY, 1e7);
   }
 
-  function zoomAt(fx, fy, mx, my) {
-    // keep the grid point under (mx, my) fixed while scaling by fx, fy
+  // scale cells by f, keeping the grid point under (mx, my) fixed
+  function zoomAt(f, mx, my) {
     const gx = st.px + mx / st.cw, gy = st.py + (H - my) / st.ch;
-    st.cw = clamp(st.cw * fx, MIN_CELL, MAX_CELL);
-    st.ch = clamp(st.ch * fy, MIN_CELL, MAX_CELL);
+    st.cw = clamp(st.cw * f, MIN_CELL, MAX_CELL);
+    st.ch = clamp(st.ch * f, MIN_CELL, MAX_CELL);
     st.px = gx - mx / st.cw;
     st.py = gy - (H - my) / st.ch;
-    clampPan(); syncZoomSliders(); req();
+    st.fitted = false;
+    clampPan(); req();
   }
 
+  // square cells, sized so a whole row fits across, starting from the first number
   function fit() {
-    const rows = Math.ceil(100 / st.w);
-    const s = clamp(Math.min((W - 2 * MARGIN) / st.w, (H - 2 * MARGIN) / rows, 64), MIN_CELL, MAX_CELL);
+    if (!W) return;
+    const s = clamp(Math.min((W - 2 * MARGIN) / st.w, FIT_CELL), MIN_CELL, MAX_CELL);
     st.cw = st.ch = s;
     st.px = -MARGIN / s; st.py = -MARGIN / s;
-    clampPan(); syncZoomSliders(); req();
+    st.fitted = true;
+    clampPan(); req();
   }
-
-  // zoom sliders are on a log scale: value v means a cell of 2^(v/10) px
-  const toSlider = s => Math.log2(s) * 10;
-  function syncZoomSliders() { $('zx').value = toSlider(st.cw); $('zy').value = toSlider(st.ch); }
 
   // ---- drawing ------------------------------------------------------------------
   let queued = false;
@@ -430,7 +575,8 @@
     }
 
     const g = gcd(a, b), l = a / g * b;
-    const fs = Math.min(ch * .42, (cw - 4) / 3.4, 16);  // sized so 3-digit numbers fit; grows no further
+    const fs = Math.min(ch * .42, (cw - 4) / 3.4, 22);  // sized so 3-digit numbers fit; grows no further
+    const filled = small || st.scheme === 'solid' || st.scheme === 'split';   // numbers sit straight on the color
     let lcmCell = null;
 
     for (let r = r0; r <= r1; r++) {
@@ -460,14 +606,14 @@
           if (f >= 6.5) {
             ctx.font = `600 ${f}px ui-sans-serif, system-ui, sans-serif`;
             const cx = x + iw / 2, cy = y + ih / 2;
-            if (k !== 0 && !(st.scheme === 'solid' || small)) {
+            if (k !== 0 && !filled) {
               const tw = ctx.measureText(t).width;
               ctx.fillStyle = col.cell; ctx.globalAlpha *= .88;
               ctx.beginPath(); ctx.roundRect(cx - tw / 2 - 3, cy - f * .62, tw + 6, f * 1.24, 4); ctx.fill();
               ctx.globalAlpha = st.focus && k !== 3 ? .25 : 1;
             }
-            ctx.fillStyle = k === 0 ? col['ink-dim'] : (st.scheme === 'solid' || st.scheme === 'split') && !small ? '#fff' : col.ink;
-            if (k !== 0 && small) ctx.fillStyle = '#fff';
+            ctx.fillStyle = k === 0 ? col['ink-dim'] : !filled ? col.ink
+              : k === 1 ? col.ta : k === 2 ? col.tb : st.scheme === 'split' && !small ? col.tsplit : col.tab;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(t, cx, cy + f * .04);
           }
@@ -500,7 +646,7 @@
       }
     }
 
-    // hover outline
+    // hover / tapped-cell outline
     if (st.hover) {
       const { c, r } = st.hover;
       ctx.strokeStyle = col.ink; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
@@ -521,33 +667,55 @@
         (g === 1
           ? `(they share no common factor, so it's just ${a} × ${b}).`
           : `(${a} × ${b} ÷ ${g}, because they share the factor <b>${g}</b>).`) +
-        ` So 1 in ${a} cells is red, 1 in ${b} is blue, and 1 in ${l} is both.` +
+        ` So 1 in ${a} squares gets ${a}'s color, 1 in ${b} gets ${b}'s, and 1 in ${l} gets both.` +
         (start === 0 ? ` 0 counts as both: it's 0 × anything.` : '');
     showHover();
   }
+  let hinted = true;     // the "how to use" hint shows in the readout until the grid is first touched
   function showHover() {
-    const h = st.hover;
-    if (!h) { $('readout').textContent = ''; return; }
+    const h = st.hover, ro = $('readout');
+    if (!h) { if (!hinted) ro.textContent = ''; return; }
+    hinted = false; ro.classList.remove('hint');
     const n = st.start + h.r * st.w + h.c, k = kind(n);
     const what = ['', `multiple of ${st.a}`, `multiple of ${st.b}`, `multiple of both`][k];
-    $('readout').textContent = `${n}` + (what ? ` · ${what}` : '') + ` · row ${h.r}, column ${h.c}`;
+    ro.textContent = `${n}` + (what ? ` · ${what}` : '') + ` · row ${h.r}, column ${h.c}`;
   }
+  function dropHint() { if (hinted) { hinted = false; $('readout').classList.remove('hint'); $('readout').textContent = ''; showHover(); } }
 
   // ---- controls -----------------------------------------------------------------
+  // press-and-hold repeats, speeding up; keyboard Enter/Space still works through click
+  // (a touch tap also fires click afterwards, so skip the click a press already handled)
+  function holdRepeat(btn, fn) {
+    let t = null, pressed = false;
+    const stop = () => { clearTimeout(t); t = null; btn.classList.remove('held'); };
+    btn.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      pressed = true;
+      btn.classList.add('held');
+      fn();
+      let delay = 400;
+      const go = () => { fn(); delay = Math.max(45, delay * .8); t = setTimeout(go, delay); };
+      t = setTimeout(go, delay);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+    btn.addEventListener('click', () => { if (pressed) pressed = false; else fn(); });   // keyboard
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
+
   function picker(id, key) {
     const root = $(id);
     const num = root.querySelector('input[type=number]');
-    const rng = root.querySelector('input[type=range]');
     const set = v => {
       v = clamp(Math.round(v) || 1, 1, 999);
-      st[key] = v; num.value = v; rng.value = Math.min(v, +rng.max);
+      if (v !== st[key]) bump(num);
+      st[key] = v; if (document.activeElement !== num || +num.value !== v) num.value = v;
       describe(); req();
     };
     num.addEventListener('input', () => { if (num.value !== '') set(+num.value); });
-    num.addEventListener('blur', () => set(+num.value));
-    rng.addEventListener('input', () => set(+rng.value));
-    root.querySelectorAll('button').forEach(b =>
-      b.addEventListener('click', () => set(st[key] + +b.dataset.d)));
+    num.addEventListener('blur', () => { set(+num.value); num.value = st[key]; });
+    root.querySelectorAll('.pm').forEach(b => holdRepeat(b, () => set(st[key] + +b.dataset.d)));
     // scroll the wheel anywhere over the picker to change the number
     let acc = 0;
     root.addEventListener('wheel', e => {
@@ -559,6 +727,16 @@
   picker('pa', 'a');
   picker('pb', 'b');
 
+  // options panel: a pop-over in portrait, inline in the landscape sidebar
+  const gear = $('gear'), opts = $('opts');
+  const showOpts = on => { opts.hidden = !on; gear.setAttribute('aria-expanded', on); };
+  gear.addEventListener('click', () => showOpts(opts.hidden));
+  const overlay = () => getComputedStyle(opts).position === 'absolute';
+  document.addEventListener('pointerdown', e => {
+    if (!opts.hidden && overlay() && !opts.contains(e.target) && !gear.contains(e.target)) showOpts(false);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !opts.hidden) showOpts(false); });
+
   document.querySelectorAll('input[name=scheme]').forEach(r => r.addEventListener('change', () => {
     st.scheme = $('legend').dataset.scheme = r.value; req();
   }));
@@ -566,25 +744,43 @@
     st.start = +r.value; describe(); req();
   }));
 
-  function setWidth(w, refit) {
-    st.w = clamp(Math.round(w) || 1, 1, 100000);
-    $('width').value = Math.min(st.w, 120); $('wbox').value = st.w;
-    if (refit) fit(); else { clampPan(); req(); }
+  // row length: changing it always refits so whole rows stay on screen
+  const sl = $('wslider'), knob = $('wknob');
+  $('wmax').textContent = SL_MAX;
+  sl.setAttribute('aria-valuemax', SL_MAX);
+  function setWidth(w) {
+    w = clamp(Math.round(w) || 1, 1, 999);
+    const changed = w !== st.w;
+    st.w = w;
+    sl.style.setProperty('--p', (Math.min(w, SL_MAX) - 1) / (SL_MAX - 1));
+    knob.textContent = w; sl.setAttribute('aria-valuenow', w);
+    if (document.activeElement !== $('wbox')) $('wbox').value = w;
+    if (changed) { if (hoverOff()) showHover(); fit(); }
   }
-  $('width').addEventListener('input', e => setWidth(+e.target.value));
-  $('wbox').addEventListener('change', e => setWidth(+e.target.value, true));
+  const hoverOff = () => { if (st.hover && st.hover.c >= st.w) { st.hover = null; return true; } return false; };
+  const fromX = x => {
+    const r = sl.querySelector('.track').getBoundingClientRect();
+    return 1 + Math.round(clamp((x - r.left) / r.width, 0, 1) * (SL_MAX - 1));
+  };
+  sl.addEventListener('pointerdown', e => {
+    sl.setPointerCapture(e.pointerId); sl.classList.add('active'); sl.focus({ preventScroll: true });
+    setWidth(fromX(e.clientX));
+  });
+  sl.addEventListener('pointermove', e => { if (sl.hasPointerCapture(e.pointerId)) setWidth(fromX(e.clientX)); });
+  ['pointerup', 'pointercancel'].forEach(ev => sl.addEventListener(ev, () => sl.classList.remove('active')));
+  sl.addEventListener('keydown', e => {
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 5, PageDown: -5 }[e.key];
+    if (d) { e.preventDefault(); setWidth(st.w + d); }
+    else if (e.key === 'Home') { e.preventDefault(); setWidth(1); }
+    else if (e.key === 'End') { e.preventDefault(); setWidth(SL_MAX); }
+  });
+  holdRepeat($('wminus'), () => setWidth(st.w - 1));
+  holdRepeat($('wplus'), () => setWidth(st.w + 1));
+  $('wbox').addEventListener('input', e => { if (e.target.value !== '') setWidth(+e.target.value); });
+  $('wbox').addEventListener('blur', e => { e.target.value = st.w; });
   document.querySelectorAll('[data-w]').forEach(btn => btn.addEventListener('click', () => {
     const k = btn.dataset.w, { a, b } = st;
-    setWidth(k === 'a' ? a : k === 'b' ? b : k === 'lcm' ? a / gcd(a, b) * b : +k, true);
-  }));
-
-  // zoom sliders zoom around the bottom-left corner; "link" moves both together
-  ['zx', 'zy'].forEach(id => $(id).addEventListener('input', e => {
-    const s = 2 ** (+e.target.value / 10);
-    const f = s / (id === 'zx' ? st.cw : st.ch);
-    const fx = id === 'zx' || $('zlink').checked ? f : 1;
-    const fy = id === 'zy' || $('zlink').checked ? f : 1;
-    zoomAt(fx, fy, 0, H);
+    setWidth(k === 'a' ? a : k === 'b' ? b : k === 'lcm' ? a / gcd(a, b) * b : +k);
   }));
   $('fit').addEventListener('click', fit);
 
@@ -595,73 +791,107 @@
   toggle('o-num', 'nums'); toggle('o-ring', 'ring'); toggle('o-focus', 'focus'); toggle('o-lcm', 'markLcm');
 
   // ---- mouse / touch on the canvas ----------------------------------------------
+  // one finger drags, two fingers pinch-zoom (and drag); a quick tap picks a square
   const ptrs = new Map();
-  let pinch = null;
+  let pinch = null, tap = null;
 
   const local = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-  function hoverAt(p) {
+  const cellAt = p => {
     const c = Math.floor(st.px + p.x / st.cw), r = Math.floor(st.py + (H - p.y) / st.ch);
-    const h = c >= 0 && c < st.w && r >= 0 ? { c, r } : null;
-    if (JSON.stringify(h) !== JSON.stringify(st.hover)) { st.hover = h; showHover(); req(); }
+    return c >= 0 && c < st.w && r >= 0 ? { c, r } : null;
+  };
+  const same = (h, g) => h && g ? h.c === g.c && h.r === g.r : h === g;
+  function setHover(h) { if (!same(h, st.hover)) { st.hover = h; showHover(); req(); } }
+  function startPinch() {
+    const [p, q] = [...ptrs.values()];
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    pinch = { d: Math.hypot(p.x - q.x, p.y - q.y) || 1, cw: st.cw, ch: st.ch,
+              gx: st.px + mx / st.cw, gy: st.py + (H - my) / st.ch };
   }
 
   cv.addEventListener('pointerdown', e => {
+    dropHint();
     cv.setPointerCapture(e.pointerId);
-    ptrs.set(e.pointerId, local(e));
+    const p = local(e);
+    ptrs.set(e.pointerId, p);
     cv.classList.add('dragging');
-    if (ptrs.size === 2) {
-      const [p, q] = [...ptrs.values()];
-      pinch = { dx: Math.abs(p.x - q.x), dy: Math.abs(p.y - q.y), cw: st.cw, ch: st.ch,
-                mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2 };
-    }
+    tap = ptrs.size === 1 ? { id: e.pointerId, x: p.x, y: p.y } : null;
+    if (ptrs.size === 2) startPinch();
   });
   cv.addEventListener('pointermove', e => {
     const p = local(e);
-    if (!ptrs.has(e.pointerId)) { hoverAt(p); return; }
+    if (!ptrs.has(e.pointerId)) { if (e.pointerType === 'mouse') setHover(cellAt(p)); return; }
     const prev = ptrs.get(e.pointerId);
     ptrs.set(e.pointerId, p);
+    if (tap && Math.hypot(p.x - tap.x, p.y - tap.y) > 8) tap = null;
     if (ptrs.size === 1) {
       st.px -= (p.x - prev.x) / st.cw;
       st.py += (p.y - prev.y) / st.ch;
-      clampPan(); hoverAt(p); req();
+      clampPan();
+      if (e.pointerType === 'mouse') setHover(cellAt(p));
+      req();
     } else if (ptrs.size === 2 && pinch) {
-      // fingers spread sideways stretch x, spread up-and-down stretch y
+      // scale by how far apart the fingers are now, and keep the grid point that
+      // started between them under their current midpoint (so pinching also drags)
       const [u, v] = [...ptrs.values()];
-      const dx = Math.abs(u.x - v.x), dy = Math.abs(u.y - v.y);
-      const fx = pinch.dx > 40 ? (pinch.cw * dx / pinch.dx) / st.cw : 1;
-      const fy = pinch.dy > 40 ? (pinch.ch * dy / pinch.dy) / st.ch : 1;
-      zoomAt(fx, fy, pinch.mx, pinch.my);
+      const s = Math.hypot(u.x - v.x, u.y - v.y) / pinch.d;
+      const mx = (u.x + v.x) / 2, my = (u.y + v.y) / 2;
+      st.cw = clamp(pinch.cw * s, MIN_CELL, MAX_CELL);
+      st.ch = clamp(pinch.ch * s, MIN_CELL, MAX_CELL);
+      st.px = pinch.gx - mx / st.cw;
+      st.py = pinch.gy - (H - my) / st.ch;
+      st.fitted = false;
+      clampPan(); req();
     }
   });
   const up = e => {
+    if (tap && tap.id === e.pointerId && e.pointerType !== 'mouse') {
+      const h = cellAt(local(e));
+      setHover(same(h, st.hover) ? null : h);     // tap the same square again to clear it
+    }
+    tap = null;
     ptrs.delete(e.pointerId);
-    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 2) startPinch(); else pinch = null;
     if (!ptrs.size) cv.classList.remove('dragging');
   };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
-  cv.addEventListener('pointerleave', () => { if (!ptrs.size && st.hover) { st.hover = null; showHover(); req(); } });
+  cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !ptrs.size) setHover(null); });
+  // keep Safari's own page pinch-zoom from fighting the grid's
+  ['gesturestart', 'gesturechange'].forEach(ev => cv.addEventListener(ev, e => e.preventDefault()));
 
+  // ctrl+wheel (and trackpad pinch, which arrives as ctrl+wheel) zooms; plain wheel scrolls the grid
   cv.addEventListener('wheel', e => {
     e.preventDefault();
-    const d = e.deltaY || e.deltaX;
-    const f = Math.exp(-d * (e.deltaMode === 1 ? 0.05 : 0.0018));
+    dropHint();
+    const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? H : 1;
     const p = local(e);
-    zoomAt(e.altKey ? 1 : f, e.shiftKey ? 1 : f, p.x, p.y);
+    if (e.ctrlKey || e.metaKey) {
+      zoomAt(Math.exp(-clamp(e.deltaY * k, -60, 60) * .008), p.x, p.y);
+    } else {
+      let dx = e.deltaX * k, dy = e.deltaY * k;
+      if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+      st.px += dx / st.cw;
+      st.py -= dy / st.ch;
+      clampPan(); req();
+    }
+    if (e.pointerType !== 'touch') setHover(cellAt(p));
   }, { passive: false });
 
   // ---- sizing ---------------------------------------------------------------------
-  let first = true;
   function resize() {
     const r = cv.getBoundingClientRect();
+    const oldW = W;
     W = r.width; H = r.height; dpr = window.devicePixelRatio || 1;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     readColors();
-    if (first) { first = false; fit(); } else { clampPan(); req(); }
+    if (st.fitted && W !== oldW) fit(); else { clampPan(); req(); }
   }
   new ResizeObserver(resize).observe($('stage'));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); req(); });
 
+  applyCustom();
+  setWidth(st.w);
   describe();
 })();
 </script>
