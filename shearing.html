@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Shearing — area of a triangle stays the same</title>
+<style>
+  :root {
+    --bg: #fbfaf7;
+    --panel: rgba(255,255,255,.82);
+    --panel-brd: #e3ded4;
+    --ink: #24211d;
+    --ink-dim: #6d675e;
+    --accent: #2563eb;
+    --warm: #c2410c;
+    --teal: #0f766e;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101319;
+      --panel: rgba(24,28,36,.82);
+      --panel-brd: #2b313d;
+      --ink: #e7eaf0;
+      --ink-dim: #99a1b0;
+      --accent: #60a5fa;
+      --warm: #fb923c;
+      --teal: #5eead4;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+
+  .panel {
+    position: fixed; top: 16px; left: 16px;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-brd); border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 12px 14px; min-width: 208px;
+  }
+  .home { display: inline-block; margin-bottom: 4px; color: var(--ink-dim); font-size: 12px; text-decoration: none; }
+  .home:hover { color: var(--ink); }
+  .panel h1 { margin: 0 0 8px; font-size: 13px; font-weight: 650; letter-spacing: .01em; }
+  .panel h1 span { color: var(--ink-dim); font-weight: 450; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .row .k { color: var(--ink-dim); }
+  .row .v { font-weight: 600; }
+  .row input {
+    font: inherit; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums; text-align: right;
+    width: 74px; padding: 3px 4px 3px 6px;
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+    border: 1px solid transparent; border-radius: 7px;
+  }
+  .row input:hover { border-color: var(--panel-brd); }
+  .row input:focus { outline: none; border-color: var(--accent); background: transparent; }
+  .area {
+    margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--panel-brd);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  }
+  .area .k { color: var(--ink-dim); font-size: 12px; }
+  .area .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .formula { margin-top: 4px; color: var(--ink-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .locked {
+    margin-top: 8px; font-size: 11.5px; color: var(--teal);
+    opacity: 0; transition: opacity .25s;
+  }
+  .locked.on { opacity: 1; }
+
+  /* full width so the rows never get squeezed into a half-viewport shrink-to-fit box;
+     transparent to pointers so the canvas underneath stays draggable */
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 0 16px; pointer-events: none;
+  }
+  .bar {
+    pointer-events: auto;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-brd); border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    max-width: calc(100vw - 32px);
+  }
+  .barrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .barrow[hidden] { display: none; }
+  #sheetrow { border-top: 1px solid var(--panel-brd); margin-top: 4px; padding: 8px 8px 4px; gap: 8px; }
+  .lab { color: var(--ink-dim); font-size: 12px; }
+  .lab b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { accent-color: var(--accent); width: 96px; margin: 0; }
+  input[type=range]#shear { width: 132px; }
+  button, .seg label {
+    font: inherit; font-size: 13px; color: var(--ink);
+    background: transparent; border: 0; border-radius: 999px;
+    padding: 6px 13px; cursor: pointer; white-space: nowrap;
+    user-select: none;
+  }
+  button:hover, .seg label:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  button.primary { background: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); background: var(--accent); }
+  .seg { display: flex; gap: 2px; background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 999px; padding: 2px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg input:checked + label { background: var(--panel); box-shadow: var(--shadow); font-weight: 600; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer; user-select: none; }
+  .chk:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .chk input { accent-color: var(--accent); margin: 0; }
+  .sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--panel-brd); }
+
+  .hint {
+    color: var(--ink-dim); font-size: 12.5px; text-align: center;
+    pointer-events: none; padding: 0 16px; max-width: 62ch;
+  }
+  .hint kbd {
+    font: inherit; font-size: 11px; border: 1px solid var(--panel-brd);
+    border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; background: var(--panel);
+  }
+  @media (max-width: 640px) {
+    .panel { min-width: 0; padding: 10px 12px; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="panel">
+  <a class="home" href="./">← home</a>
+  <h1 id="title">Triangle <span>· drag the apex sideways</span></h1>
+  <div class="row"><span class="k">base <i>b</i></span><input id="rb" type="number" step="0.5" min="0.5" value="6"></div>
+  <div class="row"><span class="k">height <i>h</i></span><input id="rh" type="number" step="0.5" min="0.5" value="4"></div>
+  <div class="area"><span class="k">area</span><span class="v" id="ra">12</span></div>
+  <div class="formula" id="rf">½ × 6 × 4</div>
+  <div class="locked" id="rl">■ area unchanged</div>
+</div>
+
+<div class="dock">
+<div class="hint" id="hint">
+  Drag the <b>apex</b> along the dashed line · drag the background to pan ·
+  <kbd>ctrl</kbd>+scroll to zoom · <kbd>←</kbd><kbd>→</kbd> to nudge
+</div>
+
+<div class="bar">
+  <div class="barrow">
+    <div class="seg">
+      <input type="radio" name="mode" id="m-tri" checked><label for="m-tri">Triangle</label>
+      <input type="radio" name="mode" id="m-par"><label for="m-par">Parallelogram</label>
+    </div>
+    <div class="sep"></div>
+    <button class="primary" id="play">▶ Slide</button>
+    <label class="chk"><input type="checkbox" id="sheets"> Sheets</label>
+    <label class="chk"><input type="checkbox" id="ghost" checked> Ghost start</label>
+    <label class="chk"><input type="checkbox" id="snap" checked> Snap</label>
+    <div class="sep"></div>
+    <button id="reset">Reset</button>
+  </div>
+  <div class="barrow" id="sheetrow" hidden>
+    <span class="lab">sheets <b id="nval">16</b></span>
+    <input type="range" id="nsheets" min="3" max="60" step="1" value="16">
+    <div class="sep"></div>
+    <span class="lab">start</span>
+    <input type="range" id="shear" min="0" max="1" step="0.004" value="1">
+    <span class="lab">now</span>
+  </div>
+</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+
+  // ---------- state ----------------------------------------------------------
+  const START = { A: { x: -3, y: -2 }, B: { x: 3, y: -2 }, s: 4, h: 4 };
+  const st = {
+    A: { ...START.A },
+    B: { ...START.B },
+    s: START.s,          // apex offset along the base direction, measured from A
+    h: START.h,          // apex offset along the base normal  (the height)
+    mode: 'triangle',
+    snap: true, showGhost: true,
+    playing: false, dir: 1,
+    ghost: null,         // {A,B,s,h} captured when a slide begins
+    sheets: false, n: 16, t: 1,   // Cavalieri deck: n sheets, t morphs ghost(0) -> now(1)
+    drag: null, hover: null, pan: null
+  };
+
+  const view = { scale: 46, ox: 0, oy: 0, ready: false };
+  const GRID = 1;          // world units per grid square
+  const STEP = 0.5;        // snap step
+  const MIN_H = 0.5;
+  const MIN_B = 0.5;
+  const ZOOM = { min: 10, max: 220 };
+
+  // ---------- palette --------------------------------------------------------
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+  let P;
+  function palette() {
+    P = dark.matches ? {
+      grid: '#222836', gridMajor: '#313a4b', axis: '#43506a',
+      ink: '#e7eaf0', dim: '#98a1b0',
+      base: '#fb923c', shape: '#60a5fa', fill: 'rgba(96,165,250,.20)',
+      ghost: 'rgba(96,165,250,.10)', ghostLine: 'rgba(96,165,250,.38)',
+      height: '#5eead4', track: 'rgba(251,146,60,.55)', pill: 'rgba(20,24,31,.86)',
+      sheetA: 'rgba(96,165,250,.30)', sheetB: 'rgba(96,165,250,.15)',
+      sheetEdge: 'rgba(96,165,250,.45)', sheetHi: 'rgba(94,234,212,.35)'
+    } : {
+      grid: '#e6e2d3', gridMajor: '#d3ccb9', axis: '#bdb4a0',
+      ink: '#24211d', dim: '#6d675e',
+      base: '#c2410c', shape: '#2563eb', fill: 'rgba(37,99,235,.15)',
+      ghost: 'rgba(37,99,235,.08)', ghostLine: 'rgba(37,99,235,.34)',
+      height: '#0f766e', track: 'rgba(194,65,12,.5)', pill: 'rgba(255,255,255,.86)',
+      sheetA: 'rgba(37,99,235,.24)', sheetB: 'rgba(37,99,235,.11)',
+      sheetEdge: 'rgba(37,99,235,.38)', sheetHi: 'rgba(15,118,110,.28)'
+    };
+    P.bg = getComputedStyle(document.body).backgroundColor;
+  }
+  palette();
+  dark.addEventListener('change', () => { palette(); draw(); });
+
+  // ---------- geometry -------------------------------------------------------
+  const sub = (p, q) => ({ x: p.x - q.x, y: p.y - q.y });
+  const dot = (p, q) => p.x * q.x + p.y * q.y;
+
+  function frameOf(A, B) {
+    const d = sub(B, A);
+    const L = Math.hypot(d.x, d.y) || 1e-9;
+    const u = { x: d.x / L, y: d.y / L };      // along the base
+    const n = { x: -u.y, y: u.x };             // perpendicular to the base
+    return { u, n, L };
+  }
+  const frame = () => frameOf(st.A, st.B);
+
+  function geomOf(A, B, s, h) {
+    const { u, n, L } = frameOf(A, B);
+    const F = { x: A.x + s * u.x, y: A.y + s * u.y };                    // foot of the height
+    const C = { x: F.x + h * n.x, y: F.y + h * n.y };                    // apex
+    const D = { x: A.x + (C.x - B.x), y: A.y + (C.y - B.y) };            // 4th parallelogram vertex
+    return { A, B, C, D, F, u, n, L };
+  }
+  const geom = (s = st.s) => geomOf(st.A, st.B, s, st.h);
+
+  // a point given in base coordinates: x along the base from A, y along its normal
+  function base2world(x, y, g) {
+    return { x: g.A.x + x * g.u.x + y * g.n.x, y: g.A.y + x * g.u.y + y * g.n.y };
+  }
+
+  const area = () => (st.mode === 'triangle' ? 0.5 : 1) * frame().L * Math.abs(st.h);
+
+  // ---------- transforms -----------------------------------------------------
+  const sx = x => view.ox + x * view.scale;
+  const sy = y => view.oy - y * view.scale;
+  const w2s = p => ({ x: sx(p.x), y: sy(p.y) });
+  const s2w = p => ({ x: (p.x - view.ox) / view.scale, y: (view.oy - p.y) / view.scale });
+
+  let lastW = 0, lastH = 0;
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2.5);
+    const w = innerWidth, h = innerHeight;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!view.ready) resetView();
+    else { view.ox += (w - lastW) / 2; view.oy += (h - lastH) / 2; }  // keep the view centred
+    lastW = w; lastH = h;
+    draw();
+  }
+
+  function resetView() {
+    const w = innerWidth, h = innerHeight;
+    view.scale = Math.max(26, Math.min(58, Math.min(w / 17, h / 12)));
+    view.ox = w / 2;
+    // land the base ~200px off the bottom so it clears the dock, whatever the height is
+    view.oy = Math.max(h * 0.42, h - 200 + st.A.y * view.scale);
+    view.ready = true;
+  }
+
+  function zoomAt(pt, factor) {
+    const before = s2w(pt);
+    view.scale = Math.max(ZOOM.min, Math.min(ZOOM.max, view.scale * factor));
+    view.ox += pt.x - sx(before.x);       // pin the world point under the cursor
+    view.oy += pt.y - sy(before.y);
+  }
+
+  // ---------- drawing helpers ------------------------------------------------
+  function line(a, b, { color, width = 1, dash = null, alpha = 1 }) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    const p = w2s(a), q = w2s(b);
+    ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function poly(pts, { fill, stroke, width = 2, join = 'round' }) {
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach((pt, i) => { const p = w2s(pt); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.lineJoin = join; ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function handle(p, color, active) {
+    const q = w2s(p);
+    const r = active ? 9 : 7;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+    ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2.5; ctx.strokeStyle = dark.matches ? '#101319' : '#fff'; ctx.stroke();
+    ctx.restore();
+  }
+
+  function label(text, p, { color = P.ink, dx = 0, dy = 0, bold = false, size = 12.5 } = {}) {
+    const q = w2s(p);
+    ctx.save();
+    ctx.font = `${bold ? 650 : 500} ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(text).width;
+    const x = q.x + dx, y = q.y + dy;
+    ctx.fillStyle = P.pill;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x - w / 2 - 5, y - 9.5, w + 10, 19, 6);
+    else ctx.rect(x - w / 2 - 5, y - 9.5, w + 10, 19);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y + .5);
+    ctx.restore();
+  }
+
+  // ---------- the scene ------------------------------------------------------
+  function drawGrid() {
+    const tl = s2w({ x: 0, y: 0 }), br = s2w({ x: innerWidth, y: innerHeight });
+    const x0 = Math.floor(Math.min(tl.x, br.x)) - 1, x1 = Math.ceil(Math.max(tl.x, br.x)) + 1;
+    const y0 = Math.floor(Math.min(tl.y, br.y)) - 1, y1 = Math.ceil(Math.max(tl.y, br.y)) + 1;
+    for (let x = x0; x <= x1; x += GRID)
+      line({ x, y: y0 }, { x, y: y1 }, { color: x === 0 ? P.axis : (x % 5 ? P.grid : P.gridMajor), width: 1 });
+    for (let y = y0; y <= y1; y += GRID)
+      line({ x: x0, y }, { x: x1, y }, { color: y === 0 ? P.axis : (y % 5 ? P.grid : P.gridMajor), width: 1 });
+  }
+
+  // extend a world-space line well past the viewport
+  function span(p, dir) {
+    const k = (innerWidth + innerHeight) / view.scale;
+    return [{ x: p.x - dir.x * k, y: p.y - dir.y * k }, { x: p.x + dir.x * k, y: p.y + dir.y * k }];
+  }
+
+  function shapePts(g) {
+    return st.mode === 'triangle' ? [g.A, g.B, g.C] : [g.A, g.B, g.C, g.D];
+  }
+
+  function rightAngle(g) {
+    // little square at the foot of the height, oriented by the base and its normal
+    const m = 11 / view.scale;
+    const sh = Math.sign(st.h) || 1;
+    const uu = { x: g.u.x * m, y: g.u.y * m };
+    const nn = { x: g.n.x * m * sh, y: g.n.y * m * sh };
+    const p1 = { x: g.F.x + uu.x, y: g.F.y + uu.y };
+    const p2 = { x: p1.x + nn.x, y: p1.y + nn.y };
+    const p3 = { x: g.F.x + nn.x, y: g.F.y + nn.y };
+    ctx.save();
+    ctx.strokeStyle = P.height; ctx.lineWidth = 1.4; ctx.globalAlpha = .8;
+    ctx.beginPath();
+    [p1, p2, p3].forEach((pt, i) => { const q = w2s(pt); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); });
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Cavalieri: cut the shape into n sheets parallel to the base. At height fraction τ the
+  // cross-section is L·(1−τ) wide for a triangle, L for a parallelogram — in both cases the
+  // width does not depend on s. So shearing only slides each sheet sideways: same sheets,
+  // same total area. `s` is interpolated between the ghost's and the current one.
+  //
+  // Each sheet takes the cross-section at its own bottom edge, so its two lower corners land
+  // exactly on the shape's sides. The deck then reads as a clean stack, at the cost of
+  // overshooting the true area by a factor (n+1)/n — invisible past a dozen or so sheets,
+  // and it costs the argument nothing: the widths still never depend on s.
+  function sheetAt(k, s, L) {
+    const t0 = k / st.n;
+    const x0 = st.mode === 'triangle' ? t0 * s : t0 * (s - L);
+    const w = st.mode === 'triangle' ? L * (1 - t0) : L;
+    return { x0, x1: x0 + w, y0: st.h * k / st.n, y1: st.h * (k + 1) / st.n };
+  }
+
+  function drawSheets(g) {
+    const s0 = ghostS(), s = s0 + (st.s - s0) * st.t;
+    const hi = Math.floor(st.n / 2);                   // one sheet called out as it travels
+    let lead = null;
+    for (let k = 0; k < st.n; k++) {
+      const q = sheetAt(k, s, g.L);
+      const pts = [
+        base2world(q.x0, q.y0, g), base2world(q.x1, q.y0, g),
+        base2world(q.x1, q.y1, g), base2world(q.x0, q.y1, g)
+      ];
+      const isLead = k === hi;
+      poly(pts, {
+        fill: isLead ? P.sheetHi : (k % 2 ? P.sheetA : P.sheetB),
+        stroke: isLead ? P.height : (st.n <= 40 ? P.sheetEdge : null),
+        width: isLead ? 2 : 1
+      });
+      if (isLead) lead = {
+        w: q.x1 - q.x0,
+        mid: base2world((q.x0 + q.x1) / 2, (q.y0 + q.y1) / 2, g)
+      };
+    }
+    return st.n <= 24 ? lead : null;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.fillStyle = P.bg;
+    ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+    drawGrid();
+    const g = geom();
+
+    // base line, extended — so the height's foot is still readable when it lands outside
+    const [be0, be1] = span(g.A, g.u);
+    line(be0, be1, { color: P.base, width: 1.2, dash: [2, 6], alpha: .5 });
+
+    // the parallel track the apex slides along
+    const [te0, te1] = span(g.C, g.u);
+    line(te0, te1, { color: P.track, width: 1.5, dash: [7, 5] });
+
+    // where the shape stood when this slide began — same area, different look
+    const drawGhost = () => {
+      if (!((st.showGhost || st.sheets) && st.ghost)) return;
+      const gh = st.ghost;
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      poly(shapePts(geomOf(gh.A, gh.B, gh.s, gh.h)),
+        { fill: st.sheets ? null : P.ghost, stroke: P.ghostLine, width: 1.5 });
+      ctx.restore();
+    };
+
+    // the shape — as a deck of sheets, or solid
+    let lead = null;
+    if (st.sheets) {
+      lead = drawSheets(g);
+      drawGhost();          // outline goes on top: at t=0 the deck fills it exactly
+      poly(shapePts(g), { fill: null, stroke: P.shape, width: 2 });
+    } else {
+      drawGhost();
+      poly(shapePts(g), { fill: P.fill, stroke: P.shape, width: 2.5 });
+    }
+
+    // height
+    line(g.F, g.C, { color: P.height, width: 2, dash: [6, 4] });
+    rightAngle(g);
+
+    // base on top, thick
+    line(g.A, g.B, { color: P.base, width: 4 });
+
+    // handles
+    handle(g.A, P.base, st.hover === 'A' || st.drag === 'A');
+    handle(g.B, P.base, st.hover === 'B' || st.drag === 'B');
+    handle(g.C, P.shape, st.hover === 'C' || st.drag === 'C');
+
+    // labels
+    const mid = { x: (g.A.x + g.B.x) / 2, y: (g.A.y + g.B.y) / 2 };
+    const sgn = Math.sign(st.h) || 1;
+    label(`b = ${fmt(g.L)}`, { x: mid.x - g.n.x * sgn * .55, y: mid.y - g.n.y * sgn * .55 },
+      { color: P.base, bold: true });
+    const hm = { x: (g.F.x + g.C.x) / 2, y: (g.F.y + g.C.y) / 2 };
+    label(`h = ${fmt(Math.abs(st.h))}`, hm, { color: P.height, bold: true, dx: 34 });
+    // this sheet's length never changes as it slides — that is the whole argument
+    if (lead) label(`${fmt(lead.w)} wide, always`, lead.mid, { color: P.height, size: 11.5 });
+
+    readout(g);
+  }
+
+  // ---------- readout --------------------------------------------------------
+  const fmt = v => {
+    const r = Math.round(v * 1000) / 1000;
+    return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/0$/, '');
+  };
+  let lastArea = null, lockTimer = null;
+
+  function readout(g) {
+    for (const [el, v] of [[inB, g.L], [inH, Math.abs(st.h)]])
+      if (document.activeElement !== el) el.value = fmt(v);
+    const a = area();
+    document.getElementById('ra').textContent = fmt(a) + ' u²';
+    document.getElementById('rf').textContent = st.mode === 'triangle'
+      ? `½ × ${fmt(g.L)} × ${fmt(Math.abs(st.h))}`
+      : `${fmt(g.L)} × ${fmt(Math.abs(st.h))}`;
+    document.getElementById('title').innerHTML = st.mode === 'triangle'
+      ? 'Triangle <span>· drag the apex sideways</span>'
+      : 'Parallelogram <span>· drag the top side sideways</span>';
+
+    // flash the "unchanged" note while the apex slides but the area holds
+    const el = document.getElementById('rl');
+    if (st.drag === 'C' || st.playing) {
+      if (lastArea !== null && Math.abs(a - lastArea) < 1e-9) {
+        el.classList.add('on');
+        clearTimeout(lockTimer);
+        lockTimer = setTimeout(() => el.classList.remove('on'), 900);
+      }
+    }
+    lastArea = a;
+  }
+
+  // ---------- interaction ----------------------------------------------------
+  const snap = v => st.snap ? Math.round(v / STEP) * STEP : v;
+  const HIT = 16;
+
+  function pick(pt) {
+    const g = geom();
+    for (const [k, p] of [['C', g.C], ['A', g.A], ['B', g.B]]) {
+      const q = w2s(p);
+      if (Math.hypot(q.x - pt.x, q.y - pt.y) <= HIT) return k;
+    }
+    // the dashed track itself → drag the height
+    const w = s2w(pt);
+    const d = Math.abs(dot(sub(w, g.A), g.n) - st.h) * view.scale;
+    if (d <= 10) return 'H';
+    return null;
+  }
+
+  const snapshot = () => ({ A: { ...st.A }, B: { ...st.B }, s: st.s, h: st.h });
+  const takeGhost = () => { st.ghost = snapshot(); setShear(1); };
+  const ensureGhost = () => { if (!st.ghost) st.ghost = snapshot(); };
+  const clearGhost = () => { st.ghost = null; setShear(1); };
+
+  // the ghost is only meaningful while the base and height are untouched
+  const ghostAligned = () => st.ghost && st.ghost.h === st.h &&
+    st.ghost.A.x === st.A.x && st.ghost.A.y === st.A.y &&
+    st.ghost.B.x === st.B.x && st.ghost.B.y === st.B.y;
+  const ghostS = () => ghostAligned() ? st.ghost.s : st.s;
+
+  const local = e => {
+    const r = cv.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
+  cv.addEventListener('pointerdown', e => {
+    const pt = local(e);
+    const k = pick(pt) || 'pan';
+    st.drag = k;
+    st.playing = false; updatePlay();
+    try { cv.setPointerCapture(e.pointerId); } catch { /* no active pointer */ }
+    if (k === 'pan') st.pan = { x: pt.x, y: pt.y, ox: view.ox, oy: view.oy };
+    if (k === 'A' || k === 'B' || k === 'H') clearGhost();
+    if (k === 'C') takeGhost();       // remember where we started this drag
+    draw();
+  });
+
+  cv.addEventListener('pointermove', e => {
+    const pt = local(e);
+    if (!st.drag) {
+      const k = pick(pt);
+      if (k !== st.hover) { st.hover = k; draw(); }
+      cv.style.cursor = k === 'H' ? 'ns-resize' : 'grab';
+      return;
+    }
+    cv.style.cursor = st.drag === 'H' ? 'ns-resize' : 'grabbing';
+
+    if (st.drag === 'pan') {
+      view.ox = st.pan.ox + (pt.x - st.pan.x);
+      view.oy = st.pan.oy + (pt.y - st.pan.y);
+      draw();
+      return;
+    }
+
+    const w = s2w(pt);
+    const g = geom();
+
+    if (st.drag === 'C') {
+      // constrained to the line parallel to the base: only the along-base offset moves
+      st.s = snap(dot(sub(w, st.A), g.u));
+      if (e.shiftKey) { st.h = setH(dot(sub(w, st.A), g.n)); clearGhost(); }
+    } else if (st.drag === 'H') {
+      st.h = setH(dot(sub(w, st.A), g.n));
+      clearGhost();
+    } else {
+      const p = st.drag === 'A' ? st.A : st.B;
+      const other = st.drag === 'A' ? st.B : st.A;
+      const nx = snap(w.x), ny = snap(w.y);
+      // the apex is stored as (s, h) in the base's own frame, so it rides along
+      if (Math.hypot(nx - other.x, ny - other.y) >= 1) {    // don't let the base collapse
+        p.x = nx; p.y = ny;
+      }
+    }
+    draw();
+  });
+
+  function setH(v) {
+    const h = snap(v);
+    return Math.abs(h) < MIN_H ? MIN_H * (Math.sign(h) || 1) : h;
+  }
+
+  const endDrag = e => {
+    if (!st.drag) return;
+    st.drag = null; st.pan = null; cv.style.cursor = 'grab';
+    if (cv.hasPointerCapture?.(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+    draw();
+  };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', () => { if (!st.drag && st.hover) { st.hover = null; draw(); } });
+
+  addEventListener('keydown', e => {
+    const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    if (!d || e.target.tagName === 'INPUT') return;
+    e.preventDefault();
+    st.playing = false; updatePlay();
+    ensureGhost();                    // keep the ghost of where the nudging began
+    st.s += d * (e.shiftKey ? 0.1 : STEP);
+    setShear(1);
+    draw();
+  });
+
+  // scroll to pan, ctrl/⌘+scroll (or trackpad pinch) to zoom
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const pt = local(e);
+    if (e.ctrlKey || e.metaKey) {
+      zoomAt(pt, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0022)));
+    } else {
+      const k = e.deltaMode === 1 ? 16 : 1;
+      view.ox -= e.deltaX * k;
+      view.oy -= e.deltaY * k;
+    }
+    draw();
+  }, { passive: false });
+
+  // ---------- animation ------------------------------------------------------
+  let raf = null, prev = 0;
+  function tick(t) {
+    if (!st.playing) { raf = null; return; }
+    const dt = Math.min((t - prev) / 1000, .05); prev = t;
+    if (st.sheets) {
+      // ping-pong the deck between where the slide started and where it is now
+      setShear(Math.max(0, Math.min(1, st.t + st.dir * dt * 0.55)));
+      if (st.t >= 1) st.dir = -1;
+      if (st.t <= 0) st.dir = 1;
+    } else {
+      const { L } = frame();
+      st.s += st.dir * dt * L * 0.75;
+      const lo = -0.85 * L, hi = 1.85 * L;
+      if (st.s > hi) { st.s = hi; st.dir = -1; }
+      if (st.s < lo) { st.s = lo; st.dir = 1; }
+    }
+    draw();
+    raf = requestAnimationFrame(tick);
+  }
+  function updatePlay() {
+    const b = document.getElementById('play');
+    b.textContent = st.playing ? '❚❚ Pause' : (st.sheets ? '▶ Shear' : '▶ Slide');
+    if (st.playing && !raf) { prev = performance.now(); raf = requestAnimationFrame(tick); }
+  }
+
+  // ---------- controls -------------------------------------------------------
+  document.getElementById('play').onclick = () => {
+    st.playing = !st.playing;
+    if (st.playing) ensureGhost();
+    updatePlay(); draw();
+  };
+  document.getElementById('reset').onclick = () => {
+    Object.assign(st, { A: { ...START.A }, B: { ...START.B }, s: START.s, h: START.h, playing: false, dir: 1 });
+    clearGhost(); resetView(); updatePlay(); draw();
+  };
+  document.getElementById('ghost').onchange = e => {
+    st.showGhost = e.target.checked;    // the snapshot itself stays — the sheets need it
+    draw();
+  };
+
+  const shearEl = document.getElementById('shear');
+  const nEl = document.getElementById('nsheets');
+  const setShear = v => { st.t = v; shearEl.value = v; };
+
+  document.getElementById('sheets').onchange = e => {
+    st.sheets = e.target.checked;
+    document.getElementById('sheetrow').hidden = !st.sheets;
+    if (st.sheets) ensureGhost();
+    st.dir = 1;
+    updatePlay(); hint(); draw();
+  };
+  shearEl.addEventListener('input', () => {
+    st.t = parseFloat(shearEl.value);
+    st.playing = false; updatePlay(); draw();
+  });
+  nEl.addEventListener('input', () => {
+    st.n = parseInt(nEl.value, 10);
+    document.getElementById('nval').textContent = st.n;
+    draw();
+  });
+
+  function hint() {
+    document.getElementById('hint').innerHTML = st.sheets
+      ? 'Every sheet keeps its length — shearing only slides it sideways, so the two shapes hold the same area (<b>Cavalieri’s principle</b>)'
+      : 'Drag the <b>apex</b> along the dashed line · drag the background to pan · ' +
+        '<kbd>ctrl</kbd>+scroll to zoom · <kbd>←</kbd><kbd>→</kbd> to nudge';
+  }
+  document.getElementById('snap').onchange = e => {
+    st.snap = e.target.checked;
+    if (st.snap) { st.s = snap(st.s); st.h = setH(st.h); st.A.x = snap(st.A.x); st.A.y = snap(st.A.y); st.B.x = snap(st.B.x); st.B.y = snap(st.B.y); }
+    draw();
+  };
+  const modeChanged = () => {
+    st.mode = document.getElementById('m-tri').checked ? 'triangle' : 'parallelogram';
+    clearGhost();
+    draw();
+  };
+
+  // base / height typed in directly: the base keeps its anchor A and its direction
+  const inB = document.getElementById('rb'), inH = document.getElementById('rh');
+  inB.addEventListener('input', () => {
+    const b = parseFloat(inB.value);
+    if (!isFinite(b) || b < MIN_B) return;
+    const { u } = frame();
+    st.B = { x: st.A.x + u.x * b, y: st.A.y + u.y * b };
+    clearGhost(); draw();
+  });
+  inH.addEventListener('input', () => {
+    const h = parseFloat(inH.value);
+    if (!isFinite(h) || Math.abs(h) < MIN_H) return;
+    st.h = Math.abs(h) * (Math.sign(st.h) || 1);
+    clearGhost(); draw();
+  });
+  for (const el of [inB, inH]) el.addEventListener('blur', draw);   // re-sync if left mid-edit
+  document.getElementById('m-tri').onchange = modeChanged;
+  document.getElementById('m-par').onchange = modeChanged;
+
+  addEventListener('resize', resize);
+  resize();
+})();
+</script>
+</body>
+</html>
