@@ -91,6 +91,17 @@
   .picker input[type=range] { width: 100%; margin: 0; accent-color: var(--c); }
 
   /* ---- options ---- */
+  .more { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin: -4px 0; }
+  .more summary {
+    list-style: none; cursor: pointer; user-select: none;
+    font-size: 12.5px; color: var(--ink-dim);
+    padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--panel-brd); background: var(--panel);
+  }
+  .more summary::-webkit-details-marker { display: none; }
+  .more summary:hover, .more[open] summary { color: var(--ink); }
+  .more[open] summary { box-shadow: var(--shadow); }
+  .more > .panel { align-self: stretch; }
   .opts { display: flex; flex-direction: column; gap: 9px; }
   .opt { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
   .opt > .k { color: var(--ink-dim); font-size: 12px; width: 70px; flex: none; }
@@ -133,7 +144,9 @@
   }
   .readout:empty { display: none; }
   .hint { color: var(--ink-dim); font-size: 12px; text-align: center; margin-top: -6px; }
-  .hint kbd {
+  .tip { color: var(--ink-dim); font-size: 12px; margin: -3px 0 0 80px; }
+  @media (max-width: 520px) { .tip { margin-left: 0; } }
+  .hint kbd, .tip kbd {
     font: inherit; font-size: 11px; border: 1px solid var(--panel-brd);
     border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; background: var(--panel);
   }
@@ -196,6 +209,8 @@
     </div>
   </div>
 
+  <details class="more">
+  <summary>⚙ Options</summary>
   <div class="panel opts">
     <div class="opt">
       <span class="k">colors</span>
@@ -232,6 +247,10 @@
       <label class="chk"><input type="checkbox" id="zlink" checked> link</label>
       <div class="seg"><button class="mini" id="fit">Fit first 100</button></div>
     </div>
+    <div class="tip">
+      <kbd>shift</kbd>+scroll stretches x only, <kbd>alt</kbd>+scroll y only.
+      On touch, pinch sideways or up-and-down.
+    </div>
     <div class="opt">
       <span class="k">show</span>
       <label class="chk"><input type="checkbox" id="o-num" checked> numbers</label>
@@ -240,15 +259,13 @@
       <label class="chk"><input type="checkbox" id="o-lcm" checked> mark lcm</label>
     </div>
   </div>
+  </details>
 
   <div class="stage" id="stage">
     <canvas id="c"></canvas>
     <div class="readout" id="readout"></div>
   </div>
-  <div class="hint">
-    drag to move · scroll to zoom · <kbd>shift</kbd>+scroll: x only · <kbd>alt</kbd>+scroll: y only ·
-    on touch, pinch sideways or up-and-down
-  </div>
+  <div class="hint">drag to move · scroll or pinch to zoom</div>
 
   <div class="panel">
     <div class="legend" id="legend" data-scheme="hatch">
