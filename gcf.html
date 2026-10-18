@@ -4,143 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Greatest common factor</title>
+<link rel="stylesheet" href="common.css">
 <style>
   :root {
-    --bg: #fbfaf7;
-    --panel: rgba(255,255,255,.82);
-    --panel-solid: #ffffff;
-    --panel-brd: #e3ded4;
-    --ink: #24211d;
-    --ink-dim: #6d675e;
-    --a: #2563eb;
-    --b: #0f766e;
-    --c: #7c3aed;
-    --over: #ef4444;
-    --ok: #15803d;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+    --a: var(--blue);
+    --b: var(--teal);
+    --c: var(--purple);
+    --over: var(--red);
+    --ok: var(--green);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #101319;
-      --panel: rgba(24,28,36,.82);
-      --panel-solid: #181c24;
-      --panel-brd: #2b313d;
-      --ink: #e7eaf0;
-      --ink-dim: #99a1b0;
-      --a: #60a5fa;
-      --b: #2dd4bf;
-      --c: #a78bfa;
-      --over: #f87171;
-      --ok: #4ade80;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-  button { -webkit-touch-callout: none; }
 
-  /* ---- page layout ----
-     portrait: header, picture (fills the rest), what-happened note, pickers — top to bottom.
-     landscape: picture on the left, everything else in a sidebar on the right. */
-  .app {
-    height: 100vh; height: 100dvh;
-    display: flex; flex-direction: column; gap: 10px;
-    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-             max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    max-width: 1100px; margin: 0 auto;
-  }
-  .side { display: contents; }
+  /* portrait order: header, picture, what-happened note, pickers */
   .top     { order: 0; }
   .stage   { order: 1; }
   .note    { order: 2; }
   .pickers { order: 3; }
 
-  @media (orientation: landscape) and (min-width: 700px) {
-    .app { flex-direction: row; max-width: none; gap: 12px; }
-    .side {
-      display: flex; flex-direction: column; gap: 10px;
-      width: 340px; flex: none; overflow-y: auto; overscroll-behavior: contain;
-    }
-    .pickers { grid-template-columns: 1fr !important; }
-    .picker.c { grid-column: auto !important; }
-  }
-
-  .top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
-  .back {
-    color: var(--ink-dim); text-decoration: none; font-size: 20px; line-height: 1;
-    width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; flex: none;
-  }
-  .back:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
-  h1 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  h1 span { color: var(--ink-dim); font-weight: 450; }
-  @media (max-width: 560px) { h1 span { display: none; } }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--panel-brd); border-radius: 14px;
-    box-shadow: var(--shadow);
-    padding: 10px 14px;
-  }
-
-  /* ---- the cartoony + / − buttons ---- */
-  .pm {
-    --c2: color-mix(in srgb, var(--k) 62%, #000);
-    width: 48px; height: 48px; flex: none; padding: 0;
-    display: grid; place-items: center; cursor: pointer;
-    border-radius: 999px; border: 0;
-    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--k) 70%, #fff), var(--k) 60%);
-    box-shadow: 0 4px 0 var(--c2), 0 6px 12px rgba(0,0,0,.18);
-    transition: transform .07s, box-shadow .07s;
-    user-select: none; -webkit-user-select: none; touch-action: manipulation;
-  }
-  .pm svg { width: 26px; height: 26px; stroke: #fff; stroke-width: 5.5; stroke-linecap: round; fill: none;
-            filter: drop-shadow(0 1.5px 0 rgba(0,0,0,.25)); }
-  .pm:active, .pm.held { transform: translateY(3px); box-shadow: 0 1px 0 var(--c2), 0 2px 4px rgba(0,0,0,.18); }
-  .pm:focus-visible { outline: 3px solid color-mix(in srgb, var(--k) 45%, transparent); outline-offset: 2px; }
-
-  /* ---- the three number pickers: A and B side by side, C underneath ---- */
+  /* A and B side by side, C underneath; one column in the landscape sidebar */
   .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .picker {
-    min-width: 0; position: relative;
-    display: flex; align-items: center; gap: 6px;
-    border-radius: 14px; padding: 16px 8px 6px;
-    background: color-mix(in srgb, var(--k) 9%, transparent);
-    border: 1px solid color-mix(in srgb, var(--k) 30%, transparent);
+  .picker.a { --hue: var(--a); }
+  .picker.b { --hue: var(--b); }
+  .picker.c { --hue: var(--c); grid-column: 1 / -1; }
+  @media (orientation: landscape) and (min-width: 700px) {
+    .pickers { grid-template-columns: 1fr; }
+    .picker.c { grid-column: auto; }
   }
-  .picker.a { --k: var(--a); }
-  .picker.b { --k: var(--b); }
-  .picker.c { --k: var(--c); grid-column: 1 / -1; }
-  .picker .tag {
-    position: absolute; left: 10px; top: 3px; font-size: 11px; color: var(--ink-dim); white-space: nowrap;
-  }
-  .picker .tag b { color: var(--k); }
-  .picker input {
-    font: inherit; font-size: 30px; font-weight: 800; letter-spacing: -.02em;
-    font-variant-numeric: tabular-nums; text-align: center; color: var(--k);
-    flex: 1; width: 100%; min-width: 0; padding: 0;
-    background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
-    -moz-appearance: textfield; appearance: textfield;
-  }
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  .picker input:focus { outline: none; border-bottom-color: var(--k); }
-  .bump { animation: bump .18s ease-out; }
-  @keyframes bump { 40% { transform: scale(1.18); } }
-  @media (max-width: 400px) { .pm { width: 42px; height: 42px; } .picker input { font-size: 26px; } }
+  @media (max-width: 400px) { .picker input[type=number] { font-size: 26px; } .pm { width: 42px; height: 42px; } }
 
   /* ---- the picture ---- */
-  .stage {
-    position: relative; flex: 1; min-height: 220px; min-width: 0;
-    border: 1px solid var(--panel-brd); border-radius: 14px; overflow: hidden;
-    background: var(--bg);
-  }
   #pic { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #pic text { font: 700 13px ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 
@@ -193,13 +84,12 @@
   </div>
 </div>
 
+<script src="common.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const gcd = (x, y) => { while (y) [x, y] = [y, x % y]; return x; };
-  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
-  const $ = id => document.getElementById(id);
+  const { $, gcd, numberPicker } = doodle;
   const NS = 'http://www.w3.org/2000/svg';
 
   const st = { a: 12, b: 8, c: 3 };
@@ -292,50 +182,8 @@
   }
 
   // ---- controls -----------------------------------------------------------------
-  // press-and-hold repeats, speeding up; keyboard Enter/Space still works through click
-  // (a touch tap also fires click afterwards, so skip the click a press already handled)
-  function holdRepeat(btn, fn) {
-    let t = null, pressed = false;
-    const stop = () => { clearTimeout(t); t = null; btn.classList.remove('held'); };
-    btn.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      pressed = true;
-      btn.classList.add('held');
-      fn();
-      let delay = 400;
-      const go = () => { fn(); delay = Math.max(45, delay * .8); t = setTimeout(go, delay); };
-      t = setTimeout(go, delay);
-    });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
-    btn.addEventListener('click', () => { if (pressed) pressed = false; else fn(); });   // keyboard
-    btn.addEventListener('contextmenu', e => e.preventDefault());
-  }
-  const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
-
-  function picker(id, key) {
-    const root = $(id);
-    const num = root.querySelector('input');
-    const set = v => {
-      v = clamp(Math.round(v) || 1, 1, 999);
-      if (v !== st[key]) bump(num);
-      st[key] = v; if (document.activeElement !== num || +num.value !== v) num.value = v;
-      describe(); draw();
-    };
-    num.addEventListener('input', () => { if (num.value !== '') set(+num.value); });
-    num.addEventListener('blur', () => { set(+num.value); num.value = st[key]; });
-    root.querySelectorAll('.pm').forEach(b => holdRepeat(b, () => set(st[key] + +b.dataset.d)));
-    // scroll the wheel anywhere over the picker to change the number
-    let acc = 0;
-    root.addEventListener('wheel', e => {
-      e.preventDefault();
-      acc += e.deltaY;
-      if (Math.abs(acc) >= 40) { set(st[key] + (acc < 0 ? 1 : -1)); acc = 0; }
-    }, { passive: false });
-  }
-  picker('pa', 'a');
-  picker('pb', 'b');
-  picker('pc', 'c');
+  for (const key of ['a', 'b', 'c'])
+    numberPicker($('p' + key), { get: () => st[key], onChange: v => { st[key] = v; describe(); draw(); } });
 
   new ResizeObserver(draw).observe($('stage'));
   describe();

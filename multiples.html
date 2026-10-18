@@ -4,158 +4,48 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Multiples grid</title>
+<link rel="stylesheet" href="common.css">
 <style>
   :root {
-    --bg: #fbfaf7;
-    --panel: rgba(255,255,255,.82);
-    --panel-solid: #ffffff;
-    --panel-brd: #e3ded4;
-    --ink: #24211d;
-    --ink-dim: #6d675e;
-    --a: #dc2626;
-    --b: #2563eb;
-    --ab: #7c3aed;
-    --lcm: #f59e0b;
-    --w: #475569;
-    --cell: #ffffff;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+    --a: var(--red);
+    --b: var(--blue);
+    --ab: var(--purple);
+    --lcm: var(--gold);
+    --w: var(--slate);
+    --cell: var(--panel-solid);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #101319;
-      --panel: rgba(24,28,36,.82);
-      --panel-solid: #181c24;
-      --panel-brd: #2b313d;
-      --ink: #e7eaf0;
-      --ink-dim: #99a1b0;
-      --a: #ef4444;
-      --b: #3b82f6;
-      --ab: #8b5cf6;
-      --lcm: #fbbf24;
-      --w: #64748b;
-      --cell: #181c24;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;   /* no double-tap zoom when tapping buttons fast */
-  }
-  button, label, summary { -webkit-touch-callout: none; }
 
-  /* ---- page layout ----
-     portrait: header, pickers, grid (fills the rest), row length — top to bottom.
-     The legend lives in a pop-over behind the ⓘ button.
-     landscape: grid on the left, everything else in a sidebar on the right.
-     The sidebar is `display: contents` in portrait so its children join the column directly. */
-  .app {
-    position: relative;
-    height: 100vh; height: 100dvh;
-    display: flex; flex-direction: column; gap: 10px;
-    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-             max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    max-width: 1100px; margin: 0 auto;
-  }
-  .side { display: contents; }
+  /* portrait order: header, pickers, grid (fills the rest), row length.
+     The legend lives in a pop-over behind the ⓘ button. */
   .top     { order: 0; }
   .pickers { order: 1; }
   .stage   { order: 2; }
   .rowlen  { order: 3; }
 
   @media (orientation: landscape) and (min-width: 700px) {
-    .app { flex-direction: row; max-width: none; gap: 12px; }
-    .side {
-      display: flex; flex-direction: column; gap: 10px;
-      width: 340px; flex: none; overflow-y: auto; overscroll-behavior: contain;
-    }
     .pickers { flex-direction: column; }
     .opts { position: static !important; max-height: none !important; }
   }
 
-  .top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
-  .back {
-    color: var(--ink-dim); text-decoration: none; font-size: 20px; line-height: 1;
-    width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; flex: none;
-  }
-  .back:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
-  h1 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  h1 span { color: var(--ink-dim); font-weight: 450; }
-  @media (max-width: 560px) { h1 span { display: none; } }
-  .gear {
-    font: inherit; font-size: 13px; color: var(--ink-dim); cursor: pointer; flex: none;
-    padding: 7px 14px; border-radius: 999px;
-    border: 1px solid var(--panel-brd); background: var(--panel);
-  }
-  .gear.i { padding: 0; width: 36px; height: 36px; font-size: 17px; font-weight: 700; font-family: Georgia, serif; font-style: italic; }
-  .gear:hover, .gear[aria-expanded=true] { color: var(--ink); }
-  .gear[aria-expanded=true] { box-shadow: var(--shadow); }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--panel-brd); border-radius: 14px;
-    box-shadow: var(--shadow);
-    padding: 10px 14px;
-  }
-
-  /* ---- the cartoony + / − buttons ---- */
-  .pm {
-    --c2: color-mix(in srgb, var(--c) 62%, #000);
-    width: 48px; height: 48px; flex: none; padding: 0;
-    display: grid; place-items: center; cursor: pointer;
-    border-radius: 999px; border: 0;
-    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 60%);
-    box-shadow: 0 4px 0 var(--c2), 0 6px 12px rgba(0,0,0,.18);
-    transition: transform .07s, box-shadow .07s;
-    user-select: none; -webkit-user-select: none; touch-action: manipulation;
-  }
-  .pm svg { width: 26px; height: 26px; stroke: #fff; stroke-width: 5.5; stroke-linecap: round; fill: none;
-            filter: drop-shadow(0 1.5px 0 rgba(0,0,0,.25)); }
-  .pm:active, .pm.held { transform: translateY(3px); box-shadow: 0 1px 0 var(--c2), 0 2px 4px rgba(0,0,0,.18); }
-  .pm:focus-visible { outline: 3px solid color-mix(in srgb, var(--c) 45%, transparent); outline-offset: 2px; }
-
   /* ---- the two number pickers ---- */
   .pickers { display: flex; gap: 10px; }
-  .picker {
-    flex: 1; min-width: 0;
-    display: flex; align-items: center; gap: 6px;
-    border-radius: 14px; padding: 6px 8px;
-    background: color-mix(in srgb, var(--c) 9%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
-  }
-  .picker.a { --c: var(--a); }
-  .picker.b { --c: var(--b); }
-  .picker input[type=number] {
-    font: inherit; font-size: 30px; font-weight: 800; letter-spacing: -.02em;
-    font-variant-numeric: tabular-nums; text-align: center; color: var(--c);
-    flex: 1; width: 100%; min-width: 0; padding: 0;
-    background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
-    -moz-appearance: textfield; appearance: textfield;
-  }
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  .picker input[type=number]:focus { outline: none; border-bottom-color: var(--c); }
-  .bump { animation: bump .18s ease-out; }
-  @keyframes bump { 40% { transform: scale(1.18); } }
+  .picker.a { --hue: var(--a); }
+  .picker.b { --hue: var(--b); }
 
   /* a colour dot you can tap to pick that number's colour */
   .dot {
     position: relative; flex: none; width: 28px; height: 28px; border-radius: 999px;
-    background: var(--c); cursor: pointer;
+    background: var(--hue); cursor: pointer;
     box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 1px 3px rgba(0,0,0,.2);
   }
-  .dot.ab { --c: var(--ab); }
+  .dot.ab { --hue: var(--ab); }
   .dot input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
   .dot::after {   /* little paint-drop hint */
     content: ""; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 999px;
     background: conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #a855f7, #ef4444);
     box-shadow: 0 0 0 2px var(--panel-solid);
   }
-  @media (max-width: 400px) { .picker .dot { display: none; } .pm { width: 44px; height: 44px; } }
+  @media (max-width: 400px) { .picker .dot { display: none; } }
 
   /* ---- options ---- */
   .opts {
@@ -165,7 +55,6 @@
     display: flex; flex-direction: column; gap: 12px;
     background: var(--panel-solid);
   }
-  .opts[hidden], .info[hidden] { display: none; }
   /* the legend + explanation: always a pop-over behind the ⓘ button, so the grid gets the room */
   .info {
     position: absolute; z-index: 5; top: calc(max(10px, env(safe-area-inset-top)) + 44px);
@@ -175,28 +64,12 @@
   }
   .opt { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
   .opt > .k { color: var(--ink-dim); font-size: 12px; width: 62px; flex: none; }
-  .seg { display: flex; flex-wrap: wrap; gap: 2px; background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 12px; padding: 3px; }
-  .seg input { position: absolute; opacity: 0; pointer-events: none; }
-  .seg label, .mini {
-    font: inherit; font-size: 13px; color: var(--ink);
-    padding: 7px 12px; border-radius: 10px; cursor: pointer; user-select: none; white-space: nowrap;
-    background: transparent; border: 0;
-  }
-  .seg label:hover, .mini:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
-  .seg input:checked + label { background: var(--panel-solid); box-shadow: var(--shadow); font-weight: 600; }
-  .seg input:focus-visible + label { outline: 2px solid var(--b); }
-  .chk { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; user-select: none; padding: 4px 0; }
-  .chk input { margin: 0; width: 18px; height: 18px; accent-color: var(--ab); }
+  .chk input { accent-color: var(--ab); }
   .colors { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .colors .c { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
-  .colors .c.a { --c: var(--a); } .colors .c.b { --c: var(--b); }
+  .colors .c.a { --hue: var(--a); } .colors .c.b { --hue: var(--b); }
 
   /* ---- the canvas ---- */
-  .stage {
-    position: relative; flex: 1; min-height: 220px; min-width: 0;
-    border: 1px solid var(--panel-brd); border-radius: 14px; overflow: hidden;
-    background: var(--bg);
-  }
   #c { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
   #c.dragging { cursor: grabbing; }
   .readout {
@@ -216,7 +89,7 @@
   }
 
   /* ---- row length ---- */
-  .rowlen { --c: var(--w); display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; }
+  .rowlen { --hue: var(--w); display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; }
   .rl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .rl-head .k { font-weight: 650; font-size: 13.5px; }
   .rl-head .seg { margin-left: auto; }
@@ -230,6 +103,7 @@
     -moz-appearance: textfield; appearance: textfield;
   }
   .numbox:focus { outline: none; border-color: var(--ink-dim); }
+  .numbox::-webkit-inner-spin-button, .numbox::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
   /* custom slider: tap anywhere to jump, drag anywhere to slide, value shown in the knob */
   .slider { position: relative; flex: 1; height: 62px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -241,19 +115,19 @@
   }
   .slider .fill {
     position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%);
-    border-radius: inherit; background: var(--c);
+    border-radius: inherit; background: var(--hue);
   }
   .slider .knob {
     position: absolute; top: 25px; left: calc(22px + var(--p) * (100% - 44px));
     width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 999px;
     display: grid; place-items: center;
     font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: #fff;
-    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 65%, #fff), var(--c) 60%);
-    box-shadow: 0 3px 0 color-mix(in srgb, var(--c) 62%, #000), 0 5px 12px rgba(0,0,0,.2);
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--hue) 65%, #fff), var(--hue) 60%);
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--hue) 62%, #000), 0 5px 12px rgba(0,0,0,.2);
     transition: transform .08s;
   }
   .slider.active .knob { transform: scale(1.12); }
-  .slider:focus-visible .knob { outline: 3px solid color-mix(in srgb, var(--c) 45%, transparent); outline-offset: 2px; }
+  .slider:focus-visible .knob { outline: 3px solid color-mix(in srgb, var(--hue) 45%, transparent); outline-offset: 2px; }
   .slider .ends {
     position: absolute; left: 22px; right: 22px; bottom: 0;
     display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-dim); pointer-events: none;
@@ -391,13 +265,12 @@
   </div>
 </div>
 
+<script src="common.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const gcd = (x, y) => { while (y) [x, y] = [y, x % y]; return x; };
-  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
-  const $ = id => document.getElementById(id);
+  const { $, clamp, gcd, holdRepeat, numberPicker } = doodle;
 
   const MIN_CELL = 2, MAX_CELL = 160;     // cell size limits in CSS px
   const FIT_CELL = 90;                    // biggest cell "fit" will pick
@@ -692,49 +565,8 @@
   function dropHint() { if (hinted) { hinted = false; $('readout').classList.remove('hint'); $('readout').textContent = ''; showHover(); } }
 
   // ---- controls -----------------------------------------------------------------
-  // press-and-hold repeats, speeding up; keyboard Enter/Space still works through click
-  // (a touch tap also fires click afterwards, so skip the click a press already handled)
-  function holdRepeat(btn, fn) {
-    let t = null, pressed = false;
-    const stop = () => { clearTimeout(t); t = null; btn.classList.remove('held'); };
-    btn.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      pressed = true;
-      btn.classList.add('held');
-      fn();
-      let delay = 400;
-      const go = () => { fn(); delay = Math.max(45, delay * .8); t = setTimeout(go, delay); };
-      t = setTimeout(go, delay);
-    });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
-    btn.addEventListener('click', () => { if (pressed) pressed = false; else fn(); });   // keyboard
-    btn.addEventListener('contextmenu', e => e.preventDefault());
-  }
-  const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
-
-  function picker(id, key) {
-    const root = $(id);
-    const num = root.querySelector('input[type=number]');
-    const set = v => {
-      v = clamp(Math.round(v) || 1, 1, 999);
-      if (v !== st[key]) bump(num);
-      st[key] = v; if (document.activeElement !== num || +num.value !== v) num.value = v;
-      describe(); req();
-    };
-    num.addEventListener('input', () => { if (num.value !== '') set(+num.value); });
-    num.addEventListener('blur', () => { set(+num.value); num.value = st[key]; });
-    root.querySelectorAll('.pm').forEach(b => holdRepeat(b, () => set(st[key] + +b.dataset.d)));
-    // scroll the wheel anywhere over the picker to change the number
-    let acc = 0;
-    root.addEventListener('wheel', e => {
-      e.preventDefault();
-      acc += e.deltaY;
-      if (Math.abs(acc) >= 40) { set(st[key] + (acc < 0 ? 1 : -1)); acc = 0; }
-    }, { passive: false });
-  }
-  picker('pa', 'a');
-  picker('pb', 'b');
+  for (const key of ['a', 'b'])
+    numberPicker($('p' + key), { get: () => st[key], onChange: v => { st[key] = v; describe(); req(); } });
 
   // options panel: a pop-over in portrait, inline in the landscape sidebar
   const gear = $('gear'), opts = $('opts');

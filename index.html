@@ -4,50 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Math Doodles</title>
+<link rel="stylesheet" href="common.css">
 <style>
-  :root {
-    --bg: #fbfaf7;
-    --panel: #ffffff;
-    --panel-brd: #e3ded4;
-    --ink: #24211d;
-    --ink-dim: #6d675e;
-    --accent: #2563eb;
-    --warm: #c2410c;
-    --a: #dc2626;
-    --b: #2563eb;
-    --ab: #7c3aed;
-    --lcm: #f59e0b;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #101319;
-      --panel: #181c24;
-      --panel-brd: #2b313d;
-      --ink: #e7eaf0;
-      --ink-dim: #99a1b0;
-      --accent: #60a5fa;
-      --warm: #fb923c;
-      --a: #ef4444;
-      --b: #3b82f6;
-      --ab: #8b5cf6;
-      --lcm: #fbbf24;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body {
-    background: var(--bg); color: var(--ink);
-    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
+  body { font-size: 15px; line-height: 1.5; }
   main { max-width: 760px; margin: 0 auto; padding: 40px 16px 48px; }
   h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
   .sub { margin: 0 0 24px; color: var(--ink-dim); }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .card {
     display: flex; flex-direction: column; gap: 10px;
-    background: var(--panel); border: 1px solid var(--panel-brd); border-radius: 14px;
+    background: var(--panel-solid); border: 1px solid var(--panel-brd); border-radius: 14px;
     padding: 14px; color: inherit; text-decoration: none;
     transition: box-shadow .15s, transform .15s;
   }
@@ -68,7 +34,7 @@
         <line x1="20" y1="25" x2="180" y2="25" stroke="var(--ink-dim)" stroke-dasharray="4 4"/>
         <polygon points="50,90 130,90 70,25" fill="var(--ink-dim)" opacity=".18"/>
         <polygon points="50,90 130,90 150,25" fill="var(--accent)" opacity=".25" stroke="var(--accent)" stroke-width="2"/>
-        <circle cx="150" cy="25" r="5" fill="var(--warm)"/>
+        <circle cx="150" cy="25" r="5" fill="var(--orange)"/>
       </svg>
       <h2>Shearing</h2>
       <p>Slide a triangle's tip sideways. Its area never changes.</p>
@@ -83,11 +49,11 @@
     <a class="card" href="gcf.html">
       <svg viewBox="0 0 200 110" aria-hidden="true">
         <!-- a 5 × 3 rectangle tiled with 2 × 2 squares: the third column and second row poke out -->
-        <rect x="40" y="35" width="100" height="60" fill="var(--panel)"/>
-        <path d="M40 55h40v40h-40zM120 55h40v40h-40zM80 15h40v40h-40z" fill="var(--ab)" opacity=".15"/>
-        <rect x="140" y="15" width="20" height="80" fill="var(--a)" opacity=".2"/>
-        <rect x="40" y="15" width="100" height="20" fill="var(--a)" opacity=".2"/>
-        <path d="M40 15v80M80 15v80M120 15v80M160 15v80M40 15h120M40 55h120M40 95h120" stroke="var(--ab)" stroke-opacity=".6" fill="none"/>
+        <rect x="40" y="35" width="100" height="60" fill="var(--panel-solid)"/>
+        <path d="M40 55h40v40h-40zM120 55h40v40h-40zM80 15h40v40h-40z" fill="var(--purple)" opacity=".15"/>
+        <rect x="140" y="15" width="20" height="80" fill="var(--red)" opacity=".2"/>
+        <rect x="40" y="15" width="100" height="20" fill="var(--red)" opacity=".2"/>
+        <path d="M40 15v80M80 15v80M120 15v80M160 15v80M40 15h120M40 55h120M40 95h120" stroke="var(--purple)" stroke-opacity=".6" fill="none"/>
         <rect x="40" y="35" width="100" height="60" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
       </svg>
       <h2>Greatest common factor</h2>
@@ -106,9 +72,9 @@
       const rect = document.createElementNS(ns, 'rect');
       rect.setAttribute('x', ox + c * s + 1.5); rect.setAttribute('y', oy + (rows - 1 - r) * s + 1.5);
       rect.setAttribute('width', s - 3); rect.setAttribute('height', s - 3); rect.setAttribute('rx', 3);
-      rect.setAttribute('fill', ['var(--panel)', 'var(--a)', 'var(--b)', 'var(--ab)'][k]);
+      rect.setAttribute('fill', ['var(--panel-solid)', 'var(--red)', 'var(--blue)', 'var(--purple)'][k]);
       if (!k) { rect.setAttribute('stroke', 'var(--panel-brd)'); }
-      if (n === 12) { rect.setAttribute('stroke', 'var(--lcm)'); rect.setAttribute('stroke-width', 2.5); }
+      if (n === 12) { rect.setAttribute('stroke', 'var(--gold)'); rect.setAttribute('stroke-width', 2.5); }
       svg.appendChild(rect);
     }
   })();

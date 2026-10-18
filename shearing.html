@@ -4,40 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Shearing — area of a triangle stays the same</title>
+<link rel="stylesheet" href="common.css">
 <style>
   :root {
-    --bg: #fbfaf7;
-    --panel: rgba(255,255,255,.82);
-    --panel-brd: #e3ded4;
-    --ink: #24211d;
-    --ink-dim: #6d675e;
-    --accent: #2563eb;
-    --warm: #c2410c;
-    --teal: #0f766e;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+    --warm: var(--orange);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #101319;
-      --panel: rgba(24,28,36,.82);
-      --panel-brd: #2b313d;
-      --ink: #e7eaf0;
-      --ink-dim: #99a1b0;
-      --accent: #60a5fa;
-      --warm: #fb923c;
-      --teal: #5eead4;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
-  }
+  body { overflow: hidden; }
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 
   .panel {
