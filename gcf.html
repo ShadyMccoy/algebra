@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Greatest common factor</title>
+<style>
+  :root {
+    --bg: #fbfaf7;
+    --panel: rgba(255,255,255,.82);
+    --panel-solid: #ffffff;
+    --panel-brd: #e3ded4;
+    --ink: #24211d;
+    --ink-dim: #6d675e;
+    --a: #2563eb;
+    --b: #0f766e;
+    --c: #7c3aed;
+    --over: #ef4444;
+    --ok: #15803d;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101319;
+      --panel: rgba(24,28,36,.82);
+      --panel-solid: #181c24;
+      --panel-brd: #2b313d;
+      --ink: #e7eaf0;
+      --ink-dim: #99a1b0;
+      --a: #60a5fa;
+      --b: #2dd4bf;
+      --c: #a78bfa;
+      --over: #f87171;
+      --ok: #4ade80;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  button { -webkit-touch-callout: none; }
+
+  /* ---- page layout ----
+     portrait: header, picture (fills the rest), what-happened note, pickers — top to bottom.
+     landscape: picture on the left, everything else in a sidebar on the right. */
+  .app {
+    height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+             max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    max-width: 1100px; margin: 0 auto;
+  }
+  .side { display: contents; }
+  .top     { order: 0; }
+  .stage   { order: 1; }
+  .note    { order: 2; }
+  .pickers { order: 3; }
+
+  @media (orientation: landscape) and (min-width: 700px) {
+    .app { flex-direction: row; max-width: none; gap: 12px; }
+    .side {
+      display: flex; flex-direction: column; gap: 10px;
+      width: 340px; flex: none; overflow-y: auto; overscroll-behavior: contain;
+    }
+    .pickers { grid-template-columns: 1fr !important; }
+    .picker.c { grid-column: auto !important; }
+  }
+
+  .top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+  .back {
+    color: var(--ink-dim); text-decoration: none; font-size: 20px; line-height: 1;
+    width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; flex: none;
+  }
+  .back:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  h1 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  h1 span { color: var(--ink-dim); font-weight: 450; }
+  @media (max-width: 560px) { h1 span { display: none; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-brd); border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 10px 14px;
+  }
+
+  /* ---- the cartoony + / − buttons ---- */
+  .pm {
+    --c2: color-mix(in srgb, var(--k) 62%, #000);
+    width: 48px; height: 48px; flex: none; padding: 0;
+    display: grid; place-items: center; cursor: pointer;
+    border-radius: 999px; border: 0;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--k) 70%, #fff), var(--k) 60%);
+    box-shadow: 0 4px 0 var(--c2), 0 6px 12px rgba(0,0,0,.18);
+    transition: transform .07s, box-shadow .07s;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .pm svg { width: 26px; height: 26px; stroke: #fff; stroke-width: 5.5; stroke-linecap: round; fill: none;
+            filter: drop-shadow(0 1.5px 0 rgba(0,0,0,.25)); }
+  .pm:active, .pm.held { transform: translateY(3px); box-shadow: 0 1px 0 var(--c2), 0 2px 4px rgba(0,0,0,.18); }
+  .pm:focus-visible { outline: 3px solid color-mix(in srgb, var(--k) 45%, transparent); outline-offset: 2px; }
+
+  /* ---- the three number pickers: A and B side by side, C underneath ---- */
+  .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .picker {
+    min-width: 0; position: relative;
+    display: flex; align-items: center; gap: 6px;
+    border-radius: 14px; padding: 16px 8px 6px;
+    background: color-mix(in srgb, var(--k) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--k) 30%, transparent);
+  }
+  .picker.a { --k: var(--a); }
+  .picker.b { --k: var(--b); }
+  .picker.c { --k: var(--c); grid-column: 1 / -1; }
+  .picker .tag {
+    position: absolute; left: 10px; top: 3px; font-size: 11px; color: var(--ink-dim); white-space: nowrap;
+  }
+  .picker .tag b { color: var(--k); }
+  .picker input {
+    font: inherit; font-size: 30px; font-weight: 800; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums; text-align: center; color: var(--k);
+    flex: 1; width: 100%; min-width: 0; padding: 0;
+    background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+    -moz-appearance: textfield; appearance: textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .picker input:focus { outline: none; border-bottom-color: var(--k); }
+  .bump { animation: bump .18s ease-out; }
+  @keyframes bump { 40% { transform: scale(1.18); } }
+  @media (max-width: 400px) { .pm { width: 42px; height: 42px; } .picker input { font-size: 26px; } }
+
+  /* ---- the picture ---- */
+  .stage {
+    position: relative; flex: 1; min-height: 220px; min-width: 0;
+    border: 1px solid var(--panel-brd); border-radius: 14px; overflow: hidden;
+    background: var(--bg);
+  }
+  #pic { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #pic text { font: 700 13px ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+  /* ---- what happened, in words ---- */
+  .note { font-size: 13.5px; display: flex; flex-direction: column; gap: 3px; }
+  .note .ln { font-variant-numeric: tabular-nums; }
+  .note .a { color: var(--a); font-weight: 700; }
+  .note .b { color: var(--b); font-weight: 700; }
+  .note .c { color: var(--c); font-weight: 700; }
+  .note .yes { color: var(--ok); font-weight: 700; }
+  .note .no { color: var(--over); font-weight: 700; }
+  .note .sum { margin-top: 3px; color: var(--ink-dim); }
+  .note .sum b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <svg id="pic" role="img" aria-label="a rectangle tiled with squares"></svg>
+  </div>
+
+  <div class="side">
+    <div class="top">
+      <a class="back" href="./" aria-label="home">←</a>
+      <h1>Greatest common factor <span>· tile a rectangle with squares</span></h1>
+    </div>
+
+    <div class="panel note" id="note" aria-live="polite"></div>
+
+    <div class="pickers">
+      <div class="picker a" id="pa">
+        <span class="tag"><b>A</b> · width</span>
+        <button class="pm" data-d="-1" aria-label="decrease A"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="999" value="12" inputmode="numeric" aria-label="A, the width">
+        <button class="pm" data-d="1" aria-label="increase A"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+      <div class="picker b" id="pb">
+        <span class="tag"><b>B</b> · height</span>
+        <button class="pm" data-d="-1" aria-label="decrease B"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="999" value="8" inputmode="numeric" aria-label="B, the height">
+        <button class="pm" data-d="1" aria-label="increase B"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+      <div class="picker c" id="pc">
+        <span class="tag"><b>C</b> · square side (your guess)</span>
+        <button class="pm" data-d="-1" aria-label="decrease C"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="999" value="3" inputmode="numeric" aria-label="C, the side of each square">
+        <button class="pm" data-d="1" aria-label="increase C"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const gcd = (x, y) => { while (y) [x, y] = [y, x % y]; return x; };
+  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const st = { a: 12, b: 8, c: 3 };
+  const pic = $('pic');
+
+  // ---- drawing ------------------------------------------------------------------
+  // The rectangle is A wide and B tall, bottom-left corner at the origin.
+  // Squares of side C are laid from that corner: enough columns to cover A and
+  // enough rows to cover B. Whatever pokes past the right or top edge is overflow.
+  function el(tag, attrs, parent = pic) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  }
+
+  function draw() {
+    const { a, b, c } = st;
+    const W = pic.clientWidth, H = pic.clientHeight;
+    if (!W || !H) return;
+    pic.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    pic.replaceChildren();
+
+    const nx = Math.ceil(a / c), ny = Math.ceil(b / c);   // squares across, squares up
+    const tw = nx * c, th = ny * c;                         // how far the tiles reach
+    // room for the A label underneath and the B label on the left
+    const L = 40, R = 16, T = 16, Bm = 38;
+    const s = Math.min((W - L - R) / tw, (H - T - Bm) / th);  // pixels per unit
+    const ox = L + (W - L - R - tw * s) / 2, oy = T + (H - T - Bm - th * s) / 2 + th * s;  // screen spot of (0, 0)
+    const X = u => ox + u * s, Y = v => oy - v * s;
+
+    // the rectangle itself
+    el('rect', { x: X(0), y: Y(b), width: a * s, height: b * s, fill: 'var(--panel-solid)' });
+
+    // checkerboard the squares (when there aren't so many it turns to mush)
+    const cs = c * s;
+    if (cs >= 6 && nx * ny <= 40000) {
+      let d = '';
+      for (let j = 0; j < ny; j++)
+        for (let i = (j % 2); i < nx; i += 2)
+          d += `M${X(i * c)} ${Y((j + 1) * c)}h${cs}v${cs}h${-cs}z`;
+      el('path', { d, fill: 'var(--c)', 'fill-opacity': .13 });
+    }
+
+    // overflow: the strip past the right edge, and the strip above the top edge
+    const over = { fill: 'var(--over)', 'fill-opacity': .2 };
+    if (tw > a) el('rect', { x: X(a), y: Y(th), width: (tw - a) * s, height: th * s, ...over });
+    if (th > b) el('rect', { x: X(0), y: Y(th), width: a * s, height: (th - b) * s, ...over });
+
+    // square outlines: one line at every multiple of C (skipped when they'd be a blur)
+    if (cs >= 3) {
+      let d = '';
+      for (let i = 0; i <= nx; i++) d += `M${X(i * c)} ${Y(0)}V${Y(th)}`;
+      for (let j = 0; j <= ny; j++) d += `M${X(0)} ${Y(j * c)}H${X(tw)}`;
+      el('path', { d, stroke: 'var(--c)', 'stroke-opacity': cs >= 12 ? .7 : .35, 'stroke-width': cs >= 12 ? 1.5 : 1, fill: 'none' });
+    }
+
+    // the rectangle's edge, drawn last so it sits on top
+    el('rect', { x: X(0), y: Y(b), width: a * s, height: b * s, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2.5 });
+
+    // side labels
+    el('text', { x: X(a / 2), y: Y(0) + 24, fill: 'var(--a)', 'text-anchor': 'middle' }).textContent = `A = ${a}`;
+    el('text', { x: X(0) - 14, y: Y(b / 2), fill: 'var(--b)', 'text-anchor': 'middle',
+                 transform: `rotate(-90 ${X(0) - 14} ${Y(b / 2)})`, 'dominant-baseline': 'middle' }).textContent = `B = ${b}`;
+  }
+
+  // ---- the words under the picture ----------------------------------------------
+  function side(n, cls, name, c) {
+    const q = Math.floor(n / c), r = n % c;
+    if (!r) return `<span class="${cls}">${name}</span>: ${n} ÷ ${c} = ${q} squares, exactly. <span class="yes">fits ✓</span>`;
+    const out = (q + 1) * c - n;
+    return `<span class="${cls}">${name}</span>: ${n} ÷ ${c} = ${q} squares with ${r} left over, ` +
+           `so square ${q + 1} pokes out by ${out}. <span class="no">doesn't fit</span>`;
+  }
+  function describe() {
+    const { a, b, c } = st, g = gcd(a, b);
+    const fa = a % c === 0, fb = b % c === 0;
+    let sum;
+    if (fa && fb) {
+      sum = `<span class="c">${c}</span> fits both sides, so it's a <b>common factor</b> of ${a} and ${b}.`;
+      if (c === g) sum += ` And it's the <b>greatest</b> one: no bigger square fits both.`;
+      else sum += ` Is there a bigger square that also fits?`;
+    } else {
+      sum = `<span class="c">${c}</span> isn't a common factor: the red part is the overflow.`;
+    }
+    $('note').innerHTML =
+      `<div class="ln">${side(a, 'a', 'Width', c)}</div>` +
+      `<div class="ln">${side(b, 'b', 'Height', c)}</div>` +
+      `<div class="sum">${sum}</div>`;
+  }
+
+  // ---- controls -----------------------------------------------------------------
+  // press-and-hold repeats, speeding up; keyboard Enter/Space still works through click
+  // (a touch tap also fires click afterwards, so skip the click a press already handled)
+  function holdRepeat(btn, fn) {
+    let t = null, pressed = false;
+    const stop = () => { clearTimeout(t); t = null; btn.classList.remove('held'); };
+    btn.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      pressed = true;
+      btn.classList.add('held');
+      fn();
+      let delay = 400;
+      const go = () => { fn(); delay = Math.max(45, delay * .8); t = setTimeout(go, delay); };
+      t = setTimeout(go, delay);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+    btn.addEventListener('click', () => { if (pressed) pressed = false; else fn(); });   // keyboard
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
+
+  function picker(id, key) {
+    const root = $(id);
+    const num = root.querySelector('input');
+    const set = v => {
+      v = clamp(Math.round(v) || 1, 1, 999);
+      if (v !== st[key]) bump(num);
+      st[key] = v; if (document.activeElement !== num || +num.value !== v) num.value = v;
+      describe(); draw();
+    };
+    num.addEventListener('input', () => { if (num.value !== '') set(+num.value); });
+    num.addEventListener('blur', () => { set(+num.value); num.value = st[key]; });
+    root.querySelectorAll('.pm').forEach(b => holdRepeat(b, () => set(st[key] + +b.dataset.d)));
+    // scroll the wheel anywhere over the picker to change the number
+    let acc = 0;
+    root.addEventListener('wheel', e => {
+      e.preventDefault();
+      acc += e.deltaY;
+      if (Math.abs(acc) >= 40) { set(st[key] + (acc < 0 ? 1 : -1)); acc = 0; }
+    }, { passive: false });
+  }
+  picker('pa', 'a');
+  picker('pb', 'b');
+  picker('pc', 'c');
+
+  new ResizeObserver(draw).observe($('stage'));
+  describe();
+})();
+</script>
+</body>
+</html>
