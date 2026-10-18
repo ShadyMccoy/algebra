@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="common.css">
 <style>
   :root {
-    --warm: var(--orange);
+    --warm: var(--orange);   /* the base and its track */
+    --shape: var(--blue);    /* the triangle / parallelogram */
+    --tall: var(--teal);     /* the height, and the slice that keeps its width */
   }
   body { overflow: hidden; }
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
@@ -148,6 +150,7 @@
 </div>
 </div>
 
+<script src="common.js"></script>
 <script>
 (() => {
   'use strict';
@@ -178,30 +181,26 @@
   const ZOOM = { min: 10, max: 220 };
 
   // ---------- palette --------------------------------------------------------
-  const dark = matchMedia('(prefers-color-scheme: dark)');
+  // every color comes from common.css; see-through ones are a token at some alpha,
+  // grid lines are ink faded into the background
   let P;
   function palette() {
-    P = dark.matches ? {
-      grid: '#222836', gridMajor: '#313a4b', axis: '#43506a',
-      ink: '#e7eaf0', dim: '#98a1b0',
-      base: '#fb923c', shape: '#60a5fa', fill: 'rgba(96,165,250,.20)',
-      ghost: 'rgba(96,165,250,.10)', ghostLine: 'rgba(96,165,250,.38)',
-      height: '#5eead4', track: 'rgba(251,146,60,.55)', pill: 'rgba(20,24,31,.86)',
-      sheetA: 'rgba(96,165,250,.30)', sheetB: 'rgba(96,165,250,.15)',
-      sheetEdge: 'rgba(96,165,250,.45)', sheetHi: 'rgba(94,234,212,.35)'
-    } : {
-      grid: '#e6e2d3', gridMajor: '#d3ccb9', axis: '#bdb4a0',
-      ink: '#24211d', dim: '#6d675e',
-      base: '#c2410c', shape: '#2563eb', fill: 'rgba(37,99,235,.15)',
-      ghost: 'rgba(37,99,235,.08)', ghostLine: 'rgba(37,99,235,.34)',
-      height: '#0f766e', track: 'rgba(194,65,12,.5)', pill: 'rgba(255,255,255,.86)',
-      sheetA: 'rgba(37,99,235,.24)', sheetB: 'rgba(37,99,235,.11)',
-      sheetEdge: 'rgba(37,99,235,.38)', sheetHi: 'rgba(15,118,110,.28)'
+    const c = doodle.css('bg', 'ink', 'ink-dim', 'panel-solid', 'warm', 'shape', 'tall');
+    const [bg, ink] = [doodle.rgb(c.bg), doodle.rgb(c.ink)];
+    const fade = t => `rgb(${bg.map((v, i) => Math.round(v + (ink[i] - v) * t))})`;
+    const see = (k, a) => `rgba(${doodle.rgb(c[k])},${a})`;
+    P = {
+      bg: c.bg, grid: fade(.1), gridMajor: fade(.18), axis: fade(.3),
+      ink: c.ink, dim: c['ink-dim'],
+      base: c.warm, shape: c.shape, height: c.tall,
+      fill: see('shape', .17), ghost: see('shape', .09), ghostLine: see('shape', .36),
+      track: see('warm', .5), pill: see('panel-solid', .86),
+      sheetA: see('shape', .27), sheetB: see('shape', .13),
+      sheetEdge: see('shape', .4), sheetHi: see('tall', .3)
     };
-    P.bg = getComputedStyle(document.body).backgroundColor;
   }
   palette();
-  dark.addEventListener('change', () => { palette(); draw(); });
+  doodle.onTheme(() => { palette(); draw(); });
 
   // ---------- geometry -------------------------------------------------------
   const sub = (p, q) => ({ x: p.x - q.x, y: p.y - q.y });
@@ -296,7 +295,7 @@
     ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
     ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
     ctx.shadowColor = 'transparent';
-    ctx.lineWidth = 2.5; ctx.strokeStyle = dark.matches ? '#101319' : '#fff'; ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = P.bg; ctx.stroke();
     ctx.restore();
   }
 

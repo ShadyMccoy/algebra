@@ -7,6 +7,7 @@
    - UI tokens (--bg, --ink, --panel, …): surfaces, text, borders. */
 
 :root {
+  color-scheme: light dark;         /* native scrollbars, inputs, menus follow the theme */
   --bg: #fbfaf7;
   --panel: rgba(255,255,255,.82);   /* floating, see-through panels */
   --panel-solid: #ffffff;           /* pop-overs and cards */
