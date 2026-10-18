@@ -62,5 +62,56 @@
   // run fn whenever light / dark mode flips
   const onTheme = fn => matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fn);
 
-  window.doodle = { $, clamp, gcd, bump, holdRepeat, numberPicker, css, onTheme };
+  // '#abc' / '#aabbcc' / 'rgb(…)' -> [r, g, b]
+  function rgb(c) {
+    c = (c || '').trim();
+    let m = /^#([0-9a-f]{3})$/i.exec(c);
+    if (m) c = '#' + [...m[1]].map(x => x + x).join('');
+    m = /^#([0-9a-f]{6})/i.exec(c);
+    if (m) { const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+    m = /rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/.exec(c);
+    return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
+  }
+  const toHex = c => '#' + rgb(c).map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+  // User-picked colors, kept in this browser only under localStorage[storeKey].
+  // Every <input type=color data-k="x"> on the page sets --x; inputs sharing a key stay in step.
+  // `names` lists the keys that can be customised; `onChange` runs after each change.
+  // Returns { reset } to go back to the page's own colors.
+  function colorPicker(storeKey, names, onChange = () => {}) {
+    let custom = {};
+    try { custom = JSON.parse(localStorage.getItem(storeKey)) || {}; } catch (e) { custom = {}; }
+    const inputs = document.querySelectorAll('input[type=color][data-k]');
+    const sync = () => { const c = css(...names); inputs.forEach(i => { i.value = toHex(c[i.dataset.k]); }); };
+    function apply() {
+      const rs = document.documentElement.style;
+      for (const k of names) custom[k] ? rs.setProperty('--' + k, custom[k]) : rs.removeProperty('--' + k);
+      try { localStorage.setItem(storeKey, JSON.stringify(custom)); } catch (e) {}
+      sync(); onChange();
+    }
+    inputs.forEach(i => i.addEventListener('input', () => { custom[i.dataset.k] = i.value; apply(); }));
+    onTheme(sync);
+    apply();
+    return { reset() { custom = {}; apply(); } };
+  }
+
+  // Header buttons that open panels: pairs of [button, panel].
+  // A panel that floats (position: absolute) closes on a tap outside it, and when
+  // another panel opens; Escape closes them all. Returns show(index, on).
+  function popovers(pairs) {
+    const floating = el => getComputedStyle(el).position === 'absolute';
+    const show = (i, on) => {
+      const [btn, pan] = pairs[i];
+      pan.hidden = !on; btn.setAttribute('aria-expanded', on);
+      if (on) pairs.forEach(([, p], j) => { if (j !== i && !p.hidden && floating(p)) show(j, false); });
+    };
+    pairs.forEach(([btn, pan], i) => btn.addEventListener('click', () => show(i, pan.hidden)));
+    document.addEventListener('pointerdown', e => pairs.forEach(([btn, pan], i) => {
+      if (!pan.hidden && floating(pan) && !pan.contains(e.target) && !btn.contains(e.target)) show(i, false);
+    }));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') pairs.forEach((_, i) => show(i, false)); });
+    return show;
+  }
+
+  window.doodle = { $, clamp, gcd, bump, holdRepeat, numberPicker, css, onTheme, rgb, toHex, colorPicker, popovers };
 })();

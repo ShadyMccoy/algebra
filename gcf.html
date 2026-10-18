@@ -11,14 +11,13 @@
     --b: var(--teal);
     --c: var(--purple);
     --over: var(--red);
-    --ok: var(--green);
+    --g: var(--gold);
   }
 
-  /* portrait order: header, picture, what-happened note, pickers */
+  /* portrait order: header, picture, pickers */
   .top     { order: 0; }
   .stage   { order: 1; }
-  .note    { order: 2; }
-  .pickers { order: 3; }
+  .pickers { order: 2; }
 
   /* A and B side by side, C underneath; one column in the landscape sidebar */
   .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -35,47 +34,62 @@
   #pic { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #pic text { font: 700 13px ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 
-  /* ---- what happened, in words ---- */
-  .note { font-size: 13.5px; display: flex; flex-direction: column; gap: 3px; }
-  .note .ln { font-variant-numeric: tabular-nums; }
-  .note .a { color: var(--a); font-weight: 700; }
-  .note .b { color: var(--b); font-weight: 700; }
-  .note .c { color: var(--c); font-weight: 700; }
-  .note .yes { color: var(--ok); font-weight: 700; }
-  .note .no { color: var(--over); font-weight: 700; }
-  .note .sum { margin-top: 3px; color: var(--ink-dim); }
-  .note .sum b { color: var(--ink); }
+  /* the "show gcf" toggle on the picture */
+  #gbtn[aria-pressed=true] { border-color: var(--g); box-shadow: 0 0 0 1.5px var(--g), var(--shadow); font-weight: 650; }
+  #gbtn .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px;
+              border: 2px dashed var(--g); }
+
+  /* the dots in the Options panel */
+  .colors .swatch.a { --hue: var(--a); } .colors .swatch.b { --hue: var(--b); } .colors .swatch.c { --hue: var(--c); }
+  .colors .swatch.over { --hue: var(--over); } .colors .swatch.g { --hue: var(--g); }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="stage" id="stage">
     <svg id="pic" role="img" aria-label="a rectangle tiled with squares"></svg>
+    <button class="float-btn" id="gbtn" aria-pressed="false"><span class="sw"></span><span id="gtxt">show gcf</span></button>
   </div>
 
   <div class="side">
     <div class="top">
       <a class="back" href="./" aria-label="home">←</a>
       <h1>Greatest common factor <span>· tile a rectangle with squares</span></h1>
+      <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
     </div>
 
-    <div class="panel note" id="note" aria-live="polite"></div>
+    <div class="panel opts pop" id="opts" hidden>
+      <div class="opt">
+        <span class="k">colors</span>
+        <div class="colors">
+          <span class="swatch a"><span class="dot"><input type="color" data-k="a" aria-label="color for A"></span>A</span>
+          <span class="swatch b"><span class="dot"><input type="color" data-k="b" aria-label="color for B"></span>B</span>
+          <span class="swatch c"><span class="dot"><input type="color" data-k="c" aria-label="color for C"></span>C</span>
+          <span class="swatch over"><span class="dot"><input type="color" data-k="over" aria-label="color for the overflow"></span>overflow</span>
+          <span class="swatch g"><span class="dot"><input type="color" data-k="g" aria-label="color for the gcf"></span>gcf</span>
+          <button class="mini" id="creset">reset</button>
+        </div>
+      </div>
+    </div>
 
     <div class="pickers">
       <div class="picker a" id="pa">
         <span class="tag"><b>A</b> · width</span>
+        <span class="dot" title="pick a color"><input type="color" data-k="a" aria-label="color for A"></span>
         <button class="pm" data-d="-1" aria-label="decrease A"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
         <input type="number" min="1" max="999" value="12" inputmode="numeric" aria-label="A, the width">
         <button class="pm" data-d="1" aria-label="increase A"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
       </div>
       <div class="picker b" id="pb">
         <span class="tag"><b>B</b> · height</span>
+        <span class="dot" title="pick a color"><input type="color" data-k="b" aria-label="color for B"></span>
         <button class="pm" data-d="-1" aria-label="decrease B"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
         <input type="number" min="1" max="999" value="8" inputmode="numeric" aria-label="B, the height">
         <button class="pm" data-d="1" aria-label="increase B"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
       </div>
       <div class="picker c" id="pc">
         <span class="tag"><b>C</b> · square side (your guess)</span>
+        <span class="dot" title="pick a color"><input type="color" data-k="c" aria-label="color for C"></span>
         <button class="pm" data-d="-1" aria-label="decrease C"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
         <input type="number" min="1" max="999" value="3" inputmode="numeric" aria-label="C, the side of each square">
         <button class="pm" data-d="1" aria-label="increase C"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
@@ -89,10 +103,10 @@
 (() => {
   'use strict';
 
-  const { $, gcd, numberPicker } = doodle;
+  const { $, gcd, numberPicker, colorPicker, popovers } = doodle;
   const NS = 'http://www.w3.org/2000/svg';
 
-  const st = { a: 12, b: 8, c: 3 };
+  const st = { a: 12, b: 8, c: 3, showG: false };
   const pic = $('pic');
 
   // ---- drawing ------------------------------------------------------------------
@@ -147,6 +161,20 @@
       el('path', { d, stroke: 'var(--c)', 'stroke-opacity': cs >= 12 ? .7 : .35, 'stroke-width': cs >= 12 ? 1.5 : 1, fill: 'none' });
     }
 
+    // the gcf overlay: the biggest square that tiles the rectangle exactly, dashed in gold,
+    // with the one in the corner filled in so its size is easy to see
+    if (st.showG) {
+      const g = gcd(a, b), gs = g * s;
+      el('rect', { x: X(0), y: Y(g), width: gs, height: gs, fill: 'var(--g)', 'fill-opacity': .3 });
+      if (gs >= 4) {
+        let d = '';
+        for (let i = 1; i < a / g; i++) d += `M${X(i * g)} ${Y(0)}V${Y(b)}`;
+        for (let j = 1; j < b / g; j++) d += `M${X(0)} ${Y(j * g)}H${X(a)}`;
+        el('path', { d, stroke: 'var(--g)', 'stroke-width': 2.5, 'stroke-dasharray': '7 5', fill: 'none' });
+      }
+      el('rect', { x: X(0), y: Y(g), width: gs, height: gs, fill: 'none', stroke: 'var(--g)', 'stroke-width': 2.5 });
+    }
+
     // the rectangle's edge, drawn last so it sits on top
     el('rect', { x: X(0), y: Y(b), width: a * s, height: b * s, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2.5 });
 
@@ -156,37 +184,20 @@
                  transform: `rotate(-90 ${X(0) - 14} ${Y(b / 2)})`, 'dominant-baseline': 'middle' }).textContent = `B = ${b}`;
   }
 
-  // ---- the words under the picture ----------------------------------------------
-  function side(n, cls, name, c) {
-    const q = Math.floor(n / c), r = n % c;
-    if (!r) return `<span class="${cls}">${name}</span>: ${n} ÷ ${c} = ${q} squares, exactly. <span class="yes">fits ✓</span>`;
-    const out = (q + 1) * c - n;
-    return `<span class="${cls}">${name}</span>: ${n} ÷ ${c} = ${q} squares with ${r} left over, ` +
-           `so square ${q + 1} pokes out by ${out}. <span class="no">doesn't fit</span>`;
-  }
-  function describe() {
-    const { a, b, c } = st, g = gcd(a, b);
-    const fa = a % c === 0, fb = b % c === 0;
-    let sum;
-    if (fa && fb) {
-      sum = `<span class="c">${c}</span> fits both sides, so it's a <b>common factor</b> of ${a} and ${b}.`;
-      if (c === g) sum += ` And it's the <b>greatest</b> one: no bigger square fits both.`;
-      else sum += ` Is there a bigger square that also fits?`;
-    } else {
-      sum = `<span class="c">${c}</span> isn't a common factor: the red part is the overflow.`;
-    }
-    $('note').innerHTML =
-      `<div class="ln">${side(a, 'a', 'Width', c)}</div>` +
-      `<div class="ln">${side(b, 'b', 'Height', c)}</div>` +
-      `<div class="sum">${sum}</div>`;
-  }
-
   // ---- controls -----------------------------------------------------------------
   for (const key of ['a', 'b', 'c'])
-    numberPicker($('p' + key), { get: () => st[key], onChange: v => { st[key] = v; describe(); draw(); } });
+    numberPicker($('p' + key), { get: () => st[key], onChange: v => { st[key] = v; draw(); label(); } });
+
+  const gbtn = $('gbtn');
+  const label = () => { $('gtxt').textContent = st.showG ? `gcf = ${gcd(st.a, st.b)}` : 'show gcf'; };
+  gbtn.addEventListener('click', () => {
+    st.showG = !st.showG; gbtn.setAttribute('aria-pressed', st.showG); label(); draw();
+  });
+
+  popovers([[$('gear'), $('opts')]]);
+  $('creset').addEventListener('click', colorPicker('gcf.colors', ['a', 'b', 'c', 'over', 'g']).reset);
 
   new ResizeObserver(draw).observe($('stage'));
-  describe();
 })();
 </script>
 </body>

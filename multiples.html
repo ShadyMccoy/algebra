@@ -24,7 +24,6 @@
 
   @media (orientation: landscape) and (min-width: 700px) {
     .pickers { flex-direction: column; }
-    .opts { position: static !important; max-height: none !important; }
   }
 
   /* ---- the two number pickers ---- */
@@ -32,42 +31,11 @@
   .picker.a { --hue: var(--a); }
   .picker.b { --hue: var(--b); }
 
-  /* a colour dot you can tap to pick that number's colour */
-  .dot {
-    position: relative; flex: none; width: 28px; height: 28px; border-radius: 999px;
-    background: var(--hue); cursor: pointer;
-    box-shadow: inset 0 0 0 2px rgba(255,255,255,.55), 0 1px 3px rgba(0,0,0,.2);
-  }
   .dot.ab { --hue: var(--ab); }
-  .dot input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
-  .dot::after {   /* little paint-drop hint */
-    content: ""; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 999px;
-    background: conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #a855f7, #ef4444);
-    box-shadow: 0 0 0 2px var(--panel-solid);
-  }
-  @media (max-width: 400px) { .picker .dot { display: none; } }
 
   /* ---- options ---- */
-  .opts {
-    position: absolute; z-index: 5; top: calc(max(10px, env(safe-area-inset-top)) + 44px);
-    right: max(12px, env(safe-area-inset-right)); width: min(440px, calc(100% - 24px));
-    max-height: 70vh; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 12px;
-    background: var(--panel-solid);
-  }
-  /* the legend + explanation: always a pop-over behind the ⓘ button, so the grid gets the room */
-  .info {
-    position: absolute; z-index: 5; top: calc(max(10px, env(safe-area-inset-top)) + 44px);
-    right: max(12px, env(safe-area-inset-right)); width: min(440px, calc(100% - 24px));
-    max-height: 70vh; overflow-y: auto;
-    background: var(--panel-solid);
-  }
-  .opt { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
-  .opt > .k { color: var(--ink-dim); font-size: 12px; width: 62px; flex: none; }
   .chk input { accent-color: var(--ab); }
-  .colors { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .colors .c { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
-  .colors .c.a { --hue: var(--a); } .colors .c.b { --hue: var(--b); }
+  .colors .swatch.a { --hue: var(--a); } .colors .swatch.b { --hue: var(--b); }
 
   /* ---- the canvas ---- */
   #c { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
@@ -80,13 +48,6 @@
   }
   .readout:empty { display: none; }
   .readout.hint { color: var(--ink-dim); }
-  .fit {
-    position: absolute; right: 10px; bottom: 10px;
-    font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer;
-    padding: 7px 12px; border-radius: 999px;
-    border: 1px solid var(--panel-brd); background: var(--panel); box-shadow: var(--shadow);
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  }
 
   /* ---- row length ---- */
   .rowlen { --hue: var(--w); display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; }
@@ -169,7 +130,7 @@
   <div class="stage" id="stage">
     <canvas id="c"></canvas>
     <div class="readout hint" id="readout">drag to move · pinch or ctrl+scroll to zoom · tap a square</div>
-    <button class="fit" id="fit" title="fit the rows to the screen">⤢ fit</button>
+    <button class="float-btn" id="fit" title="fit the rows to the screen">⤢ fit</button>
   </div>
 
   <div class="side">
@@ -180,13 +141,13 @@
       <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
     </div>
 
-    <div class="panel opts" id="opts" hidden>
+    <div class="panel opts pop" id="opts" hidden>
       <div class="opt">
         <span class="k">colors</span>
         <div class="colors">
-          <span class="c a"><span class="dot"><input type="color" data-k="a" aria-label="color for a"></span>a</span>
-          <span class="c b"><span class="dot"><input type="color" data-k="b" aria-label="color for b"></span>b</span>
-          <span class="c"><span class="dot ab"><input type="color" data-k="ab" aria-label="color for both"></span>both</span>
+          <span class="swatch a"><span class="dot"><input type="color" data-k="a" aria-label="color for a"></span>a</span>
+          <span class="swatch b"><span class="dot"><input type="color" data-k="b" aria-label="color for b"></span>b</span>
+          <span class="swatch ab"><span class="dot ab"><input type="color" data-k="ab" aria-label="color for both"></span>both</span>
           <button class="mini" id="creset">reset</button>
         </div>
       </div>
@@ -253,7 +214,7 @@
       </div>
     </div>
 
-    <div class="panel info" id="info" hidden>
+    <div class="panel info pop" id="info" hidden>
       <div class="legend" id="legend" data-scheme="hatch">
         <span class="item"><span class="chip a"></span>multiples of <b id="la">3</b></span>
         <span class="item"><span class="chip b"></span>multiples of <b id="lb">4</b></span>
@@ -270,7 +231,7 @@
 (() => {
   'use strict';
 
-  const { $, clamp, gcd, holdRepeat, numberPicker } = doodle;
+  const { $, clamp, gcd, holdRepeat, numberPicker, rgb, colorPicker, popovers } = doodle;
 
   const MIN_CELL = 2, MAX_CELL = 160;     // cell size limits in CSS px
   const FIT_CELL = 90;                    // biggest cell "fit" will pick
@@ -290,35 +251,6 @@
   let col = {};          // colors read from CSS
   let pats = {};         // stripe patterns
 
-  // ---- user-picked colors (kept in this browser only) ----------------------------
-  const CKEYS = ['a', 'b', 'ab'];
-  let custom = {};
-  try { custom = JSON.parse(localStorage.getItem('multiples.colors')) || {}; } catch (e) { custom = {}; }
-  function applyCustom() {
-    const rs = document.documentElement.style;
-    for (const k of CKEYS) custom[k] ? rs.setProperty('--' + k, custom[k]) : rs.removeProperty('--' + k);
-    try { localStorage.setItem('multiples.colors', JSON.stringify(custom)); } catch (e) {}
-    readColors(); req();
-  }
-  function syncColorInputs() {
-    document.querySelectorAll('input[type=color]').forEach(i => { i.value = toHex(col[i.dataset.k]); });
-  }
-  document.querySelectorAll('input[type=color]').forEach(i => i.addEventListener('input', () => {
-    custom[i.dataset.k] = i.value; applyCustom();
-  }));
-  $('creset').addEventListener('click', () => { custom = {}; applyCustom(); });
-
-  // '#abc' / '#aabbcc' / 'rgb(…)' -> [r, g, b]
-  function rgb(c) {
-    c = (c || '').trim();
-    let m = /^#([0-9a-f]{3})$/i.exec(c);
-    if (m) c = '#' + [...m[1]].map(x => x + x).join('');
-    m = /^#([0-9a-f]{6})/i.exec(c);
-    if (m) { const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
-    m = /rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/.exec(c);
-    return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
-  }
-  const toHex = c => '#' + rgb(c).map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
   const lum = c => {
     const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
     return .2126 * r + .7152 * g + .0722 * b;
@@ -333,7 +265,7 @@
       col[k] = cs.getPropertyValue('--' + k).trim();
     col.ta = textOn(lum(col.a)); col.tb = textOn(lum(col.b)); col.tab = textOn(lum(col.ab));
     col.tsplit = textOn((lum(col.a) + lum(col.b)) / 2);
-    buildPatterns(); syncColorInputs();
+    buildPatterns();
   }
   function tile(draw) {
     const T = 9, S = Math.round(T * dpr);
@@ -568,20 +500,8 @@
   for (const key of ['a', 'b'])
     numberPicker($('p' + key), { get: () => st[key], onChange: v => { st[key] = v; describe(); req(); } });
 
-  // options panel: a pop-over in portrait, inline in the landscape sidebar
-  const gear = $('gear'), opts = $('opts');
-  const showOpts = on => { opts.hidden = !on; gear.setAttribute('aria-expanded', on); if (on && overlay()) showInfo(false); };
-  gear.addEventListener('click', () => showOpts(opts.hidden));
-  const overlay = () => getComputedStyle(opts).position === 'absolute';
-  // the legend + explanation: a pop-over behind the ⓘ button
-  const infob = $('infob'), info = $('info');
-  const showInfo = on => { info.hidden = !on; infob.setAttribute('aria-expanded', on); if (on && overlay()) showOpts(false); };
-  infob.addEventListener('click', () => showInfo(info.hidden));
-  document.addEventListener('pointerdown', e => {
-    if (!opts.hidden && overlay() && !opts.contains(e.target) && !gear.contains(e.target)) showOpts(false);
-    if (!info.hidden && !info.contains(e.target) && !infob.contains(e.target)) showInfo(false);
-  });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!opts.hidden) showOpts(false); showInfo(false); } });
+  // options: a pop-over in portrait, inline in the landscape sidebar; the legend: always a pop-over
+  popovers([[$('gear'), $('opts')], [$('infob'), $('info')]]);
 
   document.querySelectorAll('input[name=scheme]').forEach(r => r.addEventListener('change', () => {
     st.scheme = $('legend').dataset.scheme = r.value; req();
@@ -736,7 +656,8 @@
   new ResizeObserver(resize).observe($('stage'));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); req(); });
 
-  applyCustom();
+  const colors = colorPicker('multiples.colors', ['a', 'b', 'ab'], () => { readColors(); req(); });
+  $('creset').addEventListener('click', colors.reset);
   setWidth(st.w);
   describe();
 })();
