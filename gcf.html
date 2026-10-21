@@ -131,8 +131,11 @@
     const tw = nx * c, th = ny * c;                         // how far the tiles reach
     // room for the A label underneath and the B label on the left
     const L = 40, R = 16, T = 16, Bm = 38;
-    const s = Math.min((W - L - R) / tw, (H - T - Bm) / th);  // pixels per unit
-    const ox = L + (W - L - R - tw * s) / 2, oy = T + (H - T - Bm - th * s) / 2 + th * s;  // screen spot of (0, 0)
+    // The scale depends on A and B only, so changing C never moves the rectangle.
+    // A spare strip to the right and above shows the overflow; any more is cut off.
+    const fw = a * 1.25, fh = b * 1.25;
+    const s = Math.min((W - L - R) / fw, (H - T - Bm) / fh);  // pixels per unit
+    const ox = L + (W - L - R - fw * s) / 2, oy = T + (H - T - Bm - fh * s) / 2 + fh * s;  // screen spot of (0, 0)
     const X = u => ox + u * s, Y = v => oy - v * s;
 
     // the rectangle itself
