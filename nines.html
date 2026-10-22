@@ -44,9 +44,8 @@
   .row:hover:not(.on) > span { opacity: .8; }
 
   /* ---- the rule, with this x plugged in ---- */
-  .rule { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline;
+  .rule { display: flex; flex-direction: column; gap: 2px;
           font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .rule .f { color: var(--ink-dim); font-weight: 500; }
   .rule .d1 { color: var(--d1); } .rule .d2 { color: var(--d2); } .rule .x { color: var(--x); }
   @media (max-width: 400px) { .rule { font-size: 19px; } }
 
@@ -144,16 +143,11 @@
 
   // ---- the rule, with this x plugged in ----
   function rule() {
-    const { x, div } = st, d1 = x - 1, d2 = 9 - d1, line = (a, b) => `<span>${a}</span><span>${b}</span>`;
-    let h;
-    if (div) h = line(`${D1('D1')} + ${D2('D2')}`, `= ${D1(d1)} + ${D2(d2)} = 9`)
-               + line(`${digits(x)} ÷ 9`, `<span class="f">= ${D1('D1')} + 1</span> = ${D1(d1)} + 1 = ${X(x)}`);
-    else if (x <= 10) h = line(D1('D1'), `<span class="f">= ${X('x')} − 1</span> = ${X(x)} − 1 = ${D1(d1)}`)
-                        + line(D2('D2'), `<span class="f">= 9 − ${D1('D1')}</span> = 9 − ${D1(d1)} = ${D2(d2)}`)
-                        + line(`${D1('D1')} + ${D2('D2')}`, `= ${D1(d1)} + ${D2(d2)} = 9`);
-    else h = line(`9 × ${X(x)}`, `= ${9 * x}`)
-           + digitSums(9 * x).map((s, i) => line(`<span class="f">${i ? 'again' : 'add digits'}</span>`, s)).join('');
-    $('rule').innerHTML = h;
+    const { x, div } = st, d1 = x - 1, d2 = 9 - d1;
+    const lines = div ? [`${D1(d1)} + ${D2(d2)} = 9`, `${digits(x)} ÷ 9 = ${D1(d1)} + 1 = ${X(x)}`]
+                : x <= 10 ? [`${X(x)} − 1 = ${D1(d1)}`, `9 − ${D1(d1)} = ${D2(d2)}`, `${D1(d1)} + ${D2(d2)} = 9`]
+                : [`9 × ${X(x)} = ${9 * x}`, ...digitSums(9 * x)];
+    $('rule').innerHTML = lines.map(l => `<span>${l}</span>`).join('');
   }
 
   function show() { table(); rule(); }
