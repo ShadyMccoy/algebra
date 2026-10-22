@@ -99,14 +99,12 @@
              padding: 0 10px; border-radius: 10px; border: 2.5px solid transparent; }
   .prod.gcf .n { border-color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); }
 
-  /* ---- what it says: the two equations and a line of commentary ---- */
+  /* ---- what it says: the two equations ---- */
   .say { display: flex; flex-direction: column; gap: 4px; }
   .eq { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .eq b { font-weight: 800; }
   .eq .a { color: var(--a); } .eq .b { color: var(--b); } .eq .both { color: var(--both); } .eq .rest { color: var(--ink); }
   .eq .x { color: var(--ink-dim); font-weight: 400; }
-  .msg { color: var(--ink-dim); font-size: 13.5px; min-height: 1.45em; }
-  .msg.bad { color: var(--fail); }
   .acts { display: flex; gap: 4px; margin: 2px -8px -4px; }
   .acts .mini:disabled { opacity: .4; cursor: default; background: none; }
 
@@ -156,7 +154,6 @@
     <div class="panel say" aria-live="polite">
       <div class="eq" id="eqa"></div>
       <div class="eq" id="eqb"></div>
-      <div class="msg" id="msg"></div>
       <div class="acts">
         <button class="mini" id="undo">↶ undo</button>
         <button class="mini" id="restart">start over</button>
@@ -204,45 +201,21 @@
 
   const prod = list => list.reduce((p, f) => p * f.n, 1);
   const isPrime = n => { if (n < 2) return false; for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return true; };
-  const smallest = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return d; return n; };   // smallest prime factor
-  const split = n => { const out = []; while (n > 1) { const d = smallest(n); out.push(d); n /= d; } return out; };
   const left = () => ({
     a: st.a / prod(st.pulled.filter(f => f.where !== 'b')),
     b: st.b / prod(st.pulled.filter(f => f.where !== 'a')),
   });
 
   // ---- pulling C out ------------------------------------------------------------
-  let say = { text: '', bad: false };
-
   function pull() {
     const c = st.c, r = left();
     const inA = r.a % c === 0, inB = r.b % c === 0;
-    if (!inA && !inB) {
-      say = { text: `${c} doesn't go into ${r.a} or ${r.b}.`, bad: true };
+    if (!inA && !inB) {   // goes into neither: shake
       const p = $('pc'); p.classList.remove('shake'); void p.offsetWidth; p.classList.add('shake');
-      return render();
+      return;
     }
-    const where = inA && inB ? 'both' : inA ? 'a' : 'b';
-    st.pulled.push({ n: c, where });
-    let text = where === 'both' ? `${c} goes into both, so it's in common.`
-             : where === 'a' ? `${c} goes into ${r.a}` + (r.b > 1 ? ` but not ${r.b}.` : '.')
-             : `${c} goes into ${r.b}` + (r.a > 1 ? ` but not ${r.a}.` : '.');
-    if (!isPrime(c)) text += ` (${c} isn't prime: ${split(c).join(' × ')}.)`;
-    say = { text, bad: false };
+    st.pulled.push({ n: c, where: inA && inB ? 'both' : inA ? 'a' : 'b' });
     render(true);
-  }
-
-  // what to say once there's nothing more to do, or nothing more in common
-  function verdict() {
-    const r = left(), S = prod(st.pulled.filter(f => f.where === 'both'));
-    const still = gcd(r.a, r.b), missed = gcd(st.a / S, st.b / S);
-    if (!st.pulled.length) return 'Pick a C and pull it out.';
-    if (r.a === 1 && r.b === 1)
-      return st.pulled.every(f => isPrime(f.n)) ? 'All the way down to primes.'
-           : 'Down to 1s. The dashed ones could still be split.';
-    if (still > 1) return null;                     // more to pull out of both
-    if (missed > 1) return `Nothing left in common, but A and B still share ${missed}: some of it went to one side only.`;
-    return `Nothing left in common, so the middle, ${S}, is the greatest common factor.`;
   }
 
   // ---- drawing ------------------------------------------------------------------
@@ -252,7 +225,7 @@
     b.textContent = f.n;
     b.title = 'tap to put it back';
     b.setAttribute('aria-label', `${f.n}, tap to put it back`);
-    b.addEventListener('click', () => { st.pulled.splice(i, 1); say = { text: `Put ${f.n} back.`, bad: false }; render(); });
+    b.addEventListener('click', () => { st.pulled.splice(i, 1); render(); });
     return b;
   }
 
@@ -291,9 +264,6 @@
     equation($('eqa'), 'a');
     equation($('eqb'), 'b');
 
-    const v = verdict(), m = $('msg');
-    m.textContent = say.text && v ? `${say.text} ${say.bad ? '' : v}`.trim() : say.text || v || '';
-    m.classList.toggle('bad', say.bad);
     $('undo').disabled = !st.pulled.length;
     $('restart').disabled = !st.pulled.length;
   }
@@ -303,17 +273,15 @@
   for (const key of ['a', 'b'])
     numberPicker($('p' + key), { max: 9999, get: () => st[key], onChange: v => {
       if (v === st[key]) return;
-      st[key] = v; st.pulled = []; say = { text: '', bad: false }; render();
+      st[key] = v; st.pulled = []; render();
     } });
   numberPicker($('pc'), { min: 2, max: 9999, get: () => st.c, onChange: v => { st.c = v; } });
 
   $('go').addEventListener('click', pull);
+  $('pc').addEventListener('animationend', e => e.target.classList.remove('shake'));
   $('pc').querySelector('input').addEventListener('keydown', e => { if (e.key === 'Enter') pull(); });
-  $('undo').addEventListener('click', () => {
-    const f = st.pulled.pop();
-    if (f) { say = { text: `Put ${f.n} back.`, bad: false }; render(); }
-  });
-  $('restart').addEventListener('click', () => { st.pulled = []; say = { text: '', bad: false }; render(); });
+  $('undo').addEventListener('click', () => { st.pulled.pop(); render(); });
+  $('restart').addEventListener('click', () => { st.pulled = []; render(); });
 
   popovers([[$('gear'), $('opts')]]);
   $('creset').addEventListener('click', colorPicker('primes.colors', ['a', 'b', 'both', 'c']).reset);
