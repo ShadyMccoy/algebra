@@ -200,7 +200,8 @@
   const st = { a: 60, b: 84, c: 2, pulled: [] };
 
   const prod = list => list.reduce((p, f) => p * f.n, 1);
-  const isPrime = n => { if (n < 2) return false; for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return true; };
+  const smallest = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return d; return n; };   // smallest prime factor
+  const isPrime = n => n > 1 && smallest(n) === n;
   const left = () => ({
     a: st.a / prod(st.pulled.filter(f => f.where !== 'b')),
     b: st.b / prod(st.pulled.filter(f => f.where !== 'a')),
@@ -215,17 +216,24 @@
       return;
     }
     st.pulled.push({ n: c, where: inA && inB ? 'both' : inA ? 'a' : 'b' });
-    render(true);
+    render([st.pulled.length - 1]);
   }
 
   // ---- drawing ------------------------------------------------------------------
+  // tap a prime to put it back; tap a composite to split off its smallest prime
   function chip(f, i, isNew) {
+    const prime = isPrime(f.n), hint = prime ? 'tap to put it back' : 'tap to split it';
     const b = document.createElement('button');
-    b.className = 'chip' + (isPrime(f.n) ? '' : ' composite') + (isNew ? ' new' : '');
+    b.className = 'chip' + (prime ? '' : ' composite') + (isNew ? ' new' : '');
     b.textContent = f.n;
-    b.title = 'tap to put it back';
-    b.setAttribute('aria-label', `${f.n}, tap to put it back`);
-    b.addEventListener('click', () => { st.pulled.splice(i, 1); render(); });
+    b.title = hint;
+    b.setAttribute('aria-label', `${f.n}, ${hint}`);
+    b.addEventListener('click', () => {
+      if (prime) { st.pulled.splice(i, 1); return render(); }
+      const d = smallest(f.n);
+      st.pulled.splice(i, 1, { n: d, where: f.where }, { n: f.n / d, where: f.where });
+      render([i, i + 1]);
+    });
     return b;
   }
 
@@ -240,10 +248,11 @@
       parts.map(([k, n]) => `<b class="${k}">${n}</b>`).join(' <span class="x">×</span> ');
   }
 
-  function render(grew = false) {
+  // `fresh` lists the chips to pop in
+  function render(fresh = []) {
     const cols = { a: $('ca'), b: $('cb'), both: $('cboth') };
     Object.values(cols).forEach(c => c.replaceChildren());
-    st.pulled.forEach((f, i) => cols[f.where].appendChild(chip(f, i, grew && i === st.pulled.length - 1)));
+    st.pulled.forEach((f, i) => cols[f.where].appendChild(chip(f, i, fresh.includes(i))));
 
     const r = left();
     $('la').textContent = `A = ${st.a}`;
