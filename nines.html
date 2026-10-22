@@ -8,54 +8,59 @@
 <style>
   :root {
     --x: var(--purple);   /* how many nines */
-    --n: var(--slate);    /* a nine, before regrouping */
-    --t: var(--blue);     /* the tens digit */
-    --o: var(--teal);     /* the ones digit */
-    --gap: var(--red);    /* the missing cells */
+    --d1: var(--blue);    /* the tens digit */
+    --d2: var(--teal);    /* the ones digit */
   }
 
-  /* portrait order: header, picture, result, picker */
+  /* portrait order: header, table, rule, picker */
   .top    { order: 0; }
   .stage  { order: 1; }
-  .res    { order: 2; }
+  .rule   { order: 2; }
   .picker { order: 3; flex: none; }
   .picker.x { --hue: var(--x); }
 
-  /* ---- the picture ---- */
-  #pic { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  #pic text { font: 700 13px ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-  .cell { transition: fill .45s, fill-opacity .45s, stroke .45s, stroke-opacity .45s; stroke-width: 1.5; }
-  .cell.n   { fill: var(--n); fill-opacity: .55; stroke: var(--n); stroke-opacity: 0; }
-  .cell.t   { fill: var(--t); fill-opacity: .75; stroke: var(--t); stroke-opacity: 0; }
-  .cell.o   { fill: var(--o); fill-opacity: .75; stroke: var(--o); stroke-opacity: 0; }
-  .cell.gap { fill: var(--gap); fill-opacity: .08; stroke: var(--gap); stroke-opacity: .8; stroke-dasharray: 4 3; }
-  .lbl { transition: opacity .45s; }
+  /* ---- the table ---- */
+  .stage { container-type: size; display: grid; place-items: center; }
+  #table {
+    display: grid; grid-template-columns: repeat(5, auto); align-items: baseline;
+    font-size: min(6.6cqh, 11cqw); font-weight: 700;
+    font-variant-numeric: tabular-nums; line-height: 1.32;
+  }
+  .row { display: contents; cursor: pointer; }
+  /* the gaps live inside the cells, so a picked row reads as one band */
+  .row > span { padding: 0 .18em; }
+  .row > :first-child { padding-left: .45em; border-radius: .25em 0 0 .25em; }
+  .row > :last-child { padding-right: .45em; border-radius: 0 .25em .25em 0; }
+  .row .op { color: var(--ink-dim); font-weight: 450; }
+  .row .x  { color: var(--x); text-align: right; }
+  .row .ans span { display: inline-block; }
+  .row .d1 { color: var(--d1); } .row .d2 { color: var(--d2); }
+  .row .d1.zero { opacity: .35; }
+  .row:not(.on) > span { opacity: .55; }
+  .row.on > span { background: color-mix(in srgb, var(--x) 12%, transparent); opacity: 1; }
+  .row:hover:not(.on) > span { opacity: .8; }
 
-  #rbtn[aria-pressed=true] { border-color: var(--t); box-shadow: 0 0 0 1.5px var(--t), var(--shadow); font-weight: 650; }
-
-  /* ---- the answer ---- */
-  .res { display: flex; flex-direction: column; gap: 4px; }
-  .eq { font-size: 34px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
-  .eq .x { color: var(--x); } .eq .t { color: var(--t); } .eq .o { color: var(--o); }
-  .why { margin: 0; color: var(--ink-dim); font-size: 13.5px; }
-  .why b.x { color: var(--x); } .why b.t { color: var(--t); } .why b.o { color: var(--o); } .why b.gap { color: var(--gap); }
+  /* ---- the rule, with this x plugged in ---- */
+  .rule { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline;
+          font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rule .f { color: var(--ink-dim); font-weight: 500; }
+  .rule .d1 { color: var(--d1); } .rule .d2 { color: var(--d2); } .rule .x { color: var(--x); }
+  @media (max-width: 400px) { .rule { font-size: 19px; } }
 
   /* the dots in the Options panel */
-  .colors .swatch.x { --hue: var(--x); } .colors .swatch.n { --hue: var(--n); }
-  .colors .swatch.t { --hue: var(--t); } .colors .swatch.o { --hue: var(--o); } .colors .swatch.gap { --hue: var(--gap); }
+  .colors .swatch.x { --hue: var(--x); } .colors .swatch.d1 { --hue: var(--d1); } .colors .swatch.d2 { --hue: var(--d2); }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="stage" id="stage">
-    <svg id="pic" role="img" aria-label="bars of ten, each missing one cell"></svg>
-    <button class="float-btn" id="rbtn" aria-pressed="false">regroup the gaps</button>
+    <div id="table" role="list" aria-label="the nines times table"></div>
   </div>
 
   <div class="side">
     <div class="top">
       <a class="back" href="./" aria-label="home">←</a>
-      <h1>Nines trick <span>· 9 × x is 10 × x, minus x</span></h1>
+      <h1>Nines trick <span>· the digits of 9 × x</span></h1>
       <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
     </div>
 
@@ -64,18 +69,17 @@
         <span class="k">colors</span>
         <div class="colors">
           <span class="swatch x"><span class="dot"><input type="color" data-k="x" aria-label="color for x"></span>x</span>
-          <span class="swatch n"><span class="dot"><input type="color" data-k="n" aria-label="color for a nine"></span>nine</span>
-          <span class="swatch t"><span class="dot"><input type="color" data-k="t" aria-label="color for the tens"></span>tens</span>
-          <span class="swatch o"><span class="dot"><input type="color" data-k="o" aria-label="color for the ones"></span>ones</span>
-          <span class="swatch gap"><span class="dot"><input type="color" data-k="gap" aria-label="color for the gaps"></span>gaps</span>
+          <span class="swatch d1"><span class="dot"><input type="color" data-k="d1" aria-label="color for D1"></span>D1</span>
+          <span class="swatch d2"><span class="dot"><input type="color" data-k="d2" aria-label="color for D2"></span>D2</span>
           <button class="mini" id="creset">reset</button>
         </div>
       </div>
     </div>
 
-    <div class="panel res" aria-live="polite">
-      <div class="eq">9 × <span class="x" id="ex">7</span> = <span class="t" id="et">6</span><span class="o" id="eo">3</span></div>
-      <p class="why" id="why"></p>
+    <div class="panel rule" aria-live="polite">
+      <span class="d1">D1</span><span><span class="f">= <span class="x">x</span> − 1</span> = <span class="x" id="r1x"></span> − 1 = <span class="d1" id="r1"></span></span>
+      <span class="d2">D2</span><span><span class="f">= 9 − <span class="d1">D1</span></span> = 9 − <span class="d1" id="r2a"></span> = <span class="d2" id="r2"></span></span>
+      <span><span class="d1">D1</span> + <span class="d2">D2</span></span><span>= <span class="d1" id="r3a"></span> + <span class="d2" id="r3b"></span> = 9</span>
     </div>
 
     <div class="picker x" id="px">
@@ -93,89 +97,43 @@
 (() => {
   'use strict';
 
-  const { $, numberPicker, colorPicker, popovers } = doodle;
-  const NS = 'http://www.w3.org/2000/svg';
+  const { $, bump, numberPicker, colorPicker, popovers } = doodle;
   const MAX = 10;
 
-  const st = { x: 7, regroup: false };
-  const pic = $('pic');
-  let cells = [], lbls = [];   // cells[i][j]: bar i, j-th cell from the bottom
+  const st = { x: 7 };
 
-  function el(tag, attrs, parent = pic) {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    parent.appendChild(e);
-    return e;
+  // ---- the table: 9 × 1 … 9 × 10, each answer split into D1 (tens) and D2 (ones) ----
+  // 9 × 1 is written 09, so every answer has two digits and the D1 column runs 0 to 9.
+  const rows = [];
+  for (let x = 1; x <= MAX; x++) {
+    const d1 = x - 1, d2 = 9 - d1;
+    const r = document.createElement('div');
+    r.className = 'row'; r.setAttribute('role', 'listitem');
+    r.innerHTML = `<span>9</span><span class="op">×</span><span class="x">${x}</span><span class="op">=</span>`
+                + `<span class="ans"><span class="d1${d1 ? '' : ' zero'}">${d1}</span><span class="d2">${d2}</span></span>`;
+    r.addEventListener('click', () => setX(x));
+    $('table').appendChild(r);
+    rows.push(r);
   }
 
-  // ---- drawing ------------------------------------------------------------------
-  // x bars, each a column of 10 cells. A nine is a bar with its top cell missing.
-  // Regrouping moves all x gaps into the last bar: the first x − 1 bars are whole
-  // tens, and the last bar keeps 10 − x ones.
-  function draw() {
-    const { x } = st;
-    const W = pic.clientWidth, H = pic.clientHeight;
-    if (!W || !H) return;
-    pic.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    pic.replaceChildren();
-
-    // the scale fits 10 bars, so changing x never resizes the cells
-    const T = 16, Bm = 40, side = 16, gapX = .6;
-    const s = Math.min((W - 2 * side) / (MAX + (MAX - 1) * gapX), (H - T - Bm) / 10, 46);
-    const bw = s * (1 + gapX), total = x * s + (x - 1) * gapX * s;
-    const ox = (W - total) / 2, oy = T + (H - T - Bm - 10 * s) / 2;   // top-left of bar 0
-
-    cells = []; lbls = [];
-    for (let i = 0; i < x; i++) {
-      const col = [];
-      for (let j = 0; j < 10; j++)
-        col.push(el('rect', { class: 'cell', x: ox + i * bw + 1.5, y: oy + (9 - j) * s + 1.5,
-                              width: s - 3, height: s - 3, rx: Math.min(5, s / 6) }));
-      cells.push(col);
-      const t = el('text', { class: 'lbl', x: ox + i * bw + s / 2, y: oy + 10 * s + 22, 'text-anchor': 'middle' });
-      lbls.push(t);
-    }
-    paint();
-  }
-
-  // color the cells and labels for the current view (no rebuild, so the change fades)
-  function paint() {
-    const { x, regroup } = st;
-    cells.forEach((col, i) => col.forEach((c, j) => {
-      let k;
-      if (!regroup) k = j === 9 ? 'gap' : 'n';
-      else if (i < x - 1) k = 't';
-      else k = j < 10 - x ? 'o' : 'gap';
-      c.setAttribute('class', 'cell ' + k);
-    }));
-    lbls.forEach((t, i) => {
-      const last = i === x - 1;
-      t.textContent = !regroup ? '9' : last ? String(10 - x) : '10';
-      t.setAttribute('fill', !regroup ? 'var(--n)' : last ? 'var(--o)' : 'var(--t)');
-    });
-
-    const tens = x - 1, ones = 10 - x;
-    $('ex').textContent = x; $('et').textContent = tens; $('eo').textContent = ones;
-    $('why').innerHTML = !regroup
-      ? `<b class="x">${x}</b> bars of ten, each with <b class="gap">one gap</b>: that's 10 × ${x} − ${x}.`
-      : `Slide all <b class="gap">${x} gaps</b> into the last bar. <b class="t">${tens}</b> whole tens are left, `
-        + `and the last bar keeps <b class="o">${ones}</b>. The digits: ${x} − 1 and 10 − ${x}, `
-        + `which add to <b class="t">${tens}</b> + <b class="o">${ones}</b> = 9.`;
-    $('rbtn').textContent = regroup ? 'back to nines' : 'regroup the gaps';
+  function show() {
+    const { x } = st, d1 = x - 1, d2 = 9 - d1;
+    rows.forEach((r, i) => r.classList.toggle('on', i === x - 1));
+    $('r1x').textContent = x; $('r1').textContent = d1;
+    $('r2a').textContent = d1; $('r2').textContent = d2;
+    $('r3a').textContent = d1; $('r3b').textContent = d2;
   }
 
   // ---- controls -----------------------------------------------------------------
-  numberPicker($('px'), { get: () => st.x, max: MAX, onChange: v => { st.x = v; draw(); } });
-
-  const rbtn = $('rbtn');
-  rbtn.addEventListener('click', () => {
-    st.regroup = !st.regroup; rbtn.setAttribute('aria-pressed', st.regroup); paint();
-  });
+  const setX = numberPicker($('px'), { get: () => st.x, max: MAX, onChange: v => {
+    if (v !== st.x) bump(rows[v - 1].querySelector('.ans'));
+    st.x = v; show();
+  } });
 
   popovers([[$('gear'), $('opts')]]);
-  $('creset').addEventListener('click', colorPicker('nines.colors', ['x', 'n', 't', 'o', 'gap']).reset);
+  $('creset').addEventListener('click', colorPicker('nines.colors', ['x', 'd1', 'd2']).reset);
 
-  new ResizeObserver(draw).observe($('stage'));
+  show();
 })();
 </script>
 </body>
