@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prime factors</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  :root {
+    --a: var(--blue);
+    --b: var(--teal);
+    --both: var(--purple);
+    --c: var(--orange);
+    --fail: var(--red);
+    --g: var(--gold);
+  }
+
+  /* portrait order: header, picture, what it says, pickers */
+  .top     { order: 0; }
+  .stage   { order: 1; }
+  .say     { order: 2; }
+  .pickers { order: 3; }
+
+  /* A and B side by side, C and its button underneath; one column in the landscape sidebar */
+  .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .picker.a { --hue: var(--a); }
+  .picker.b { --hue: var(--b); }
+  .picker.c { --hue: var(--c); }
+  .crow { grid-column: 1 / -1; display: flex; gap: 10px; align-items: stretch; }
+  @media (orientation: landscape) and (min-width: 700px) {
+    .pickers { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 400px) { .picker input[type=number] { font-size: 26px; } .pm { width: 42px; height: 42px; } }
+
+  /* the "pull out" button: a fat pill in C's color */
+  .go {
+    --hue: var(--c); --hue2: color-mix(in srgb, var(--hue) 62%, #000);
+    flex: none; padding: 0 20px; margin-bottom: 4px; cursor: pointer;
+    font: inherit; font-size: 16px; font-weight: 800; color: #fff; text-shadow: 0 1.5px 0 rgba(0,0,0,.25);
+    border: 0; border-radius: 999px;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--hue) 70%, #fff), var(--hue) 60%);
+    box-shadow: 0 4px 0 var(--hue2), 0 6px 12px rgba(0,0,0,.18);
+    transition: transform .07s, box-shadow .07s;
+    user-select: none; -webkit-user-select: none;
+  }
+  .go:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--hue2), 0 2px 4px rgba(0,0,0,.18); }
+  .go:focus-visible { outline: 3px solid color-mix(in srgb, var(--hue) 45%, transparent); outline-offset: 2px; }
+
+  /* a C that goes into neither: shake, and flash red */
+  .shake { animation: shake .35s ease-out; }
+  @keyframes shake { 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } }
+  .picker.c.shake { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 12%, transparent); }
+
+  /* ---- the picture: two overlapping boxes, A's on the left and B's on the right ----
+     Everything inside A's box multiplies back up to A, and the same for B.
+     The middle, where they overlap, holds what was pulled out of both. */
+  .venn {
+    position: absolute; inset: 0; padding: 14px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto 1fr auto;
+  }
+  .ring { grid-row: 1 / -1; border: 2.5px solid var(--hue); border-radius: 18px;
+          background: color-mix(in srgb, var(--hue) 7%, transparent); }
+  .ring.a { --hue: var(--a); grid-column: 1 / 3; margin-bottom: 16px; }
+  .ring.b { --hue: var(--b); grid-column: 2 / 4; margin-top: 16px; }
+  .venn > :not(.ring) { position: relative; padding: 8px 10px; min-width: 0; }
+  .lbl { grid-row: 1; font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .lbl.a { grid-column: 1; color: var(--a); }
+  .lbl.b { grid-column: 3; color: var(--b); text-align: right; margin-top: 16px; }
+  .lbl.both { grid-column: 2; color: var(--both); text-align: center; margin-top: 16px; font-weight: 600; font-size: 12.5px; }
+
+  .col { grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; overflow-y: auto; }
+  .col.a { grid-column: 1; --hue: var(--a); }
+  .col.both { grid-column: 2; --hue: var(--both); }
+  .col.b { grid-column: 3; --hue: var(--b); }
+
+  /* one pulled-out factor; tap it to put it back */
+  .chip {
+    min-width: 44px; height: 44px; padding: 0 8px; cursor: pointer;
+    font: inherit; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--hue);
+    border: 2px solid var(--hue); border-radius: 12px;
+    background: color-mix(in srgb, var(--hue) 16%, var(--panel-solid));
+  }
+  .chip.composite { border-style: dashed; }   /* not prime: it could still be split */
+  .chip:hover { box-shadow: var(--shadow); }
+  .chip.new { animation: pop .25s ease-out; }
+  @keyframes pop { from { transform: scale(.2); opacity: 0; } 70% { transform: scale(1.12); } }
+
+  /* what's left of A and of B, at the bottom of each outer column */
+  .left { grid-row: 3; display: flex; flex-direction: column; align-items: center; }
+  .left.a { grid-column: 1; color: var(--a); margin-bottom: 16px; }
+  .left.b { grid-column: 3; color: var(--b); }
+  .left .k, .prod .k { font-size: 11.5px; color: var(--ink-dim); }
+  .left .n { font-size: 30px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .left .n.one { opacity: .35; }
+
+  /* the product of the middle, under it; gold once it's the whole gcf */
+  .prod { grid-row: 3; grid-column: 2; margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; color: var(--both); }
+  .prod .n { font-size: 22px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums;
+             padding: 0 10px; border-radius: 10px; border: 2.5px solid transparent; }
+  .prod.gcf .n { border-color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); }
+
+  /* ---- what it says: the two equations ---- */
+  .say { display: flex; flex-direction: column; gap: 4px; }
+  .eq { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .eq b { font-weight: 800; }
+  .eq .a { color: var(--a); } .eq .b { color: var(--b); } .eq .both { color: var(--both); } .eq .rest { color: var(--ink); }
+  .eq .x { color: var(--ink-dim); font-weight: 400; }
+  .acts { display: flex; gap: 4px; margin: 2px -8px -4px; }
+  .acts .mini:disabled { opacity: .4; cursor: default; background: none; }
+
+  /* the dots in the Options panel */
+  .colors .swatch.a { --hue: var(--a); } .colors .swatch.b { --hue: var(--b); }
+  .colors .swatch.both { --hue: var(--both); } .colors .swatch.c { --hue: var(--c); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="venn" role="img" aria-label="two overlapping boxes holding the factors pulled out of A and B">
+      <div class="ring a"></div>
+      <div class="ring b"></div>
+      <div class="lbl a" id="la"></div>
+      <div class="lbl both">in both</div>
+      <div class="lbl b" id="lb"></div>
+      <div class="col a" id="ca"></div>
+      <div class="col both" id="cboth"></div>
+      <div class="col b" id="cb"></div>
+      <div class="left a"><span class="k">left</span><span class="n" id="ra"></span></div>
+      <div class="prod" id="prod"><span class="k" id="prodk">together</span><span class="n" id="pn"></span></div>
+      <div class="left b"><span class="k">left</span><span class="n" id="rb"></span></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="top">
+      <a class="back" href="./" aria-label="home">←</a>
+      <h1>Prime factors <span>· pull numbers out of A and B</span></h1>
+      <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
+    </div>
+
+    <div class="panel opts pop" id="opts" hidden>
+      <div class="opt">
+        <span class="k">colors</span>
+        <div class="colors">
+          <span class="swatch a"><span class="dot"><input type="color" data-k="a" aria-label="color for A"></span>A</span>
+          <span class="swatch b"><span class="dot"><input type="color" data-k="b" aria-label="color for B"></span>B</span>
+          <span class="swatch both"><span class="dot"><input type="color" data-k="both" aria-label="color for what's in both"></span>in both</span>
+          <span class="swatch c"><span class="dot"><input type="color" data-k="c" aria-label="color for C"></span>C</span>
+          <button class="mini" id="creset">reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel say" aria-live="polite">
+      <div class="eq" id="eqa"></div>
+      <div class="eq" id="eqb"></div>
+      <div class="acts">
+        <button class="mini" id="undo">↶ undo</button>
+        <button class="mini" id="restart">start over</button>
+      </div>
+    </div>
+
+    <div class="pickers">
+      <div class="picker a" id="pa">
+        <span class="tag"><b>A</b></span>
+        <span class="dot" title="pick a color"><input type="color" data-k="a" aria-label="color for A"></span>
+        <button class="pm" data-d="-1" aria-label="decrease A"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="9999" value="60" inputmode="numeric" aria-label="A">
+        <button class="pm" data-d="1" aria-label="increase A"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+      <div class="picker b" id="pb">
+        <span class="tag"><b>B</b></span>
+        <span class="dot" title="pick a color"><input type="color" data-k="b" aria-label="color for B"></span>
+        <button class="pm" data-d="-1" aria-label="decrease B"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="9999" value="84" inputmode="numeric" aria-label="B">
+        <button class="pm" data-d="1" aria-label="increase B"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+      <div class="crow">
+        <div class="picker c" id="pc">
+          <span class="tag"><b>C</b> · try pulling this out</span>
+          <button class="pm" data-d="-1" aria-label="decrease C"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+          <input type="number" min="2" max="9999" value="2" inputmode="numeric" aria-label="C, the number to pull out">
+          <button class="pm" data-d="1" aria-label="increase C"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+        </div>
+        <button class="go" id="go">pull out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const { $, gcd, bump, numberPicker, colorPicker, popovers } = doodle;
+
+  // `pulled` is every C taken out so far, in order, each with where it came from:
+  // 'a' (only A), 'b' (only B) or 'both'. What's left of A and B follows from it.
+  const st = { a: 60, b: 84, c: 2, pulled: [] };
+
+  const prod = list => list.reduce((p, f) => p * f.n, 1);
+  const smallest = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return d; return n; };   // smallest prime factor
+  const isPrime = n => n > 1 && smallest(n) === n;
+  const left = () => ({
+    a: st.a / prod(st.pulled.filter(f => f.where !== 'b')),
+    b: st.b / prod(st.pulled.filter(f => f.where !== 'a')),
+  });
+
+  // ---- pulling C out ------------------------------------------------------------
+  function pull() {
+    const c = st.c, r = left();
+    const inA = r.a % c === 0, inB = r.b % c === 0;
+    if (!inA && !inB) {   // goes into neither: shake
+      const p = $('pc'); p.classList.remove('shake'); void p.offsetWidth; p.classList.add('shake');
+      return;
+    }
+    st.pulled.push({ n: c, where: inA && inB ? 'both' : inA ? 'a' : 'b' });
+    render([st.pulled.length - 1]);
+  }
+
+  // ---- drawing ------------------------------------------------------------------
+  // tap a prime to put it back; tap a composite to split off its smallest prime
+  function chip(f, i, isNew) {
+    const prime = isPrime(f.n), hint = prime ? 'tap to put it back' : 'tap to split it';
+    const b = document.createElement('button');
+    b.className = 'chip' + (prime ? '' : ' composite') + (isNew ? ' new' : '');
+    b.textContent = f.n;
+    b.title = hint;
+    b.setAttribute('aria-label', `${f.n}, ${hint}`);
+    b.addEventListener('click', () => {
+      if (prime) { st.pulled.splice(i, 1); return render(); }
+      const d = smallest(f.n);
+      st.pulled.splice(i, 1, { n: d, where: f.where }, { n: f.n / d, where: f.where });
+      render([i, i + 1]);
+    });
+    return b;
+  }
+
+  // "60 = 2 × 2 × 3 × 5", the shared factors first, then this side's, then what's left
+  function equation(el, side) {
+    const r = left()[side];
+    const parts = [];
+    st.pulled.forEach(f => { if (f.where === 'both') parts.push(['both', f.n]); });
+    st.pulled.forEach(f => { if (f.where === side) parts.push([side, f.n]); });
+    if (r > 1 || !parts.length) parts.push(['rest', r]);
+    el.innerHTML = `<b class="${side}">${st[side]}</b> <span class="x">=</span> ` +
+      parts.map(([k, n]) => `<b class="${k}">${n}</b>`).join(' <span class="x">×</span> ');
+  }
+
+  // `fresh` lists the chips to pop in
+  function render(fresh = []) {
+    const cols = { a: $('ca'), b: $('cb'), both: $('cboth') };
+    Object.values(cols).forEach(c => c.replaceChildren());
+    st.pulled.forEach((f, i) => cols[f.where].appendChild(chip(f, i, fresh.includes(i))));
+
+    const r = left();
+    $('la').textContent = `A = ${st.a}`;
+    $('lb').textContent = `B = ${st.b}`;
+    for (const k of ['a', 'b']) {
+      const n = $('r' + k);
+      if (+n.textContent !== r[k] && n.textContent) bump(n);
+      n.textContent = r[k];
+      n.classList.toggle('one', r[k] === 1);
+    }
+
+    const shared = st.pulled.filter(f => f.where === 'both'), S = prod(shared);
+    const isG = st.pulled.length > 0 && S === gcd(st.a, st.b);
+    $('pn').textContent = S;
+    $('prodk').textContent = isG ? 'gcf' : 'together';
+    $('prod').classList.toggle('gcf', isG);
+
+    equation($('eqa'), 'a');
+    equation($('eqb'), 'b');
+
+    $('undo').disabled = !st.pulled.length;
+    $('restart').disabled = !st.pulled.length;
+  }
+
+  // ---- controls -----------------------------------------------------------------
+  // a new A or B starts the pulling over
+  for (const key of ['a', 'b'])
+    numberPicker($('p' + key), { max: 9999, get: () => st[key], onChange: v => {
+      if (v === st[key]) return;
+      st[key] = v; st.pulled = []; render();
+    } });
+  numberPicker($('pc'), { min: 2, max: 9999, get: () => st.c, onChange: v => { st.c = v; } });
+
+  $('go').addEventListener('click', pull);
+  $('pc').addEventListener('animationend', e => e.target.classList.remove('shake'));
+  $('pc').querySelector('input').addEventListener('keydown', e => { if (e.key === 'Enter') pull(); });
+  $('undo').addEventListener('click', () => { st.pulled.pop(); render(); });
+  $('restart').addEventListener('click', () => { st.pulled = []; render(); });
+
+  popovers([[$('gear'), $('opts')]]);
+  $('creset').addEventListener('click', colorPicker('primes.colors', ['a', 'b', 'both', 'c']).reset);
+
+  render();
+})();
+</script>
+</body>
+</html>
