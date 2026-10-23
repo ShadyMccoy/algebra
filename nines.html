@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nines trick</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  :root {
+    --x: var(--purple);   /* how many nines */
+    --d1: var(--blue);    /* the tens digit */
+    --d2: var(--teal);    /* the ones digit */
+  }
+
+  /* portrait order: header, table, rule, controls */
+  .top    { order: 0; }
+  .stage  { order: 1; }
+  .rule   { order: 2; }
+  .ctl    { order: 3; flex: none; display: flex; gap: 8px; align-items: stretch; }
+  .ctl .seg { flex-direction: column; flex-wrap: nowrap; justify-content: center; }
+  .ctl .seg label { font-size: 18px; font-weight: 700; padding: 2px 12px; }
+  .picker.x { --hue: var(--x); }
+
+  /* ---- the table ---- */
+  .stage { container-type: size; display: grid; place-items: center; }
+  #table {
+    display: grid; grid-template-columns: repeat(5, auto); align-items: baseline;
+    font-size: min(6.6cqh, 11cqw); font-weight: 700;
+    font-variant-numeric: tabular-nums; line-height: 1.32;
+  }
+  #table.wide { font-size: min(5.9cqh, 8cqw); }   /* room for 9 × 999 = 8991, and the sums under it */
+  .row { display: contents; cursor: pointer; }
+  /* the gaps live inside the cells, so a picked row reads as one band */
+  .row > span { padding: 0 .18em; }
+  .row > :first-child { padding-left: .45em; border-radius: .25em 0 0 .25em; }
+  .row > :last-child { padding-right: .45em; border-radius: 0 .25em .25em 0; }
+  .row > .n { text-align: right; }
+  .row .op { color: var(--ink-dim); font-weight: 450; }
+  .row .x  { color: var(--x); }
+  .row .d1 { color: var(--d1); } .row .d2 { color: var(--d2); }
+  .row .d1.zero { opacity: .35; }
+  .row:not(.on) > span { opacity: .55; }
+  .row.on > span { background: color-mix(in srgb, var(--x) 12%, transparent); opacity: 1; }
+  .row:hover:not(.on) > span { opacity: .8; }
+  /* the picked row opened up: its digit sums underneath, in the same band */
+  .row.open > :first-child { border-bottom-left-radius: 0; }
+  .row.open > :last-child { border-bottom-right-radius: 0; }
+  .sums {
+    grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-end;
+    font-size: .55em; line-height: 1.4; padding: .1em .8em .4em;
+    background: color-mix(in srgb, var(--x) 12%, transparent); border-radius: 0 0 .45em .45em;
+  }
+
+  /* ---- the rule, with this x plugged in ---- */
+  .rule { display: flex; flex-direction: column; gap: 2px;
+          font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rule .d1 { color: var(--d1); } .rule .d2 { color: var(--d2); } .rule .x { color: var(--x); }
+  @media (max-width: 400px) { .rule { font-size: 19px; } }
+
+  /* the dots in the Options panel */
+  .colors .swatch.x { --hue: var(--x); } .colors .swatch.d1 { --hue: var(--d1); } .colors .swatch.d2 { --hue: var(--d2); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <div id="table" role="list" aria-label="the nines times table"></div>
+  </div>
+
+  <div class="side">
+    <div class="top">
+      <a class="back" href="./" aria-label="home">←</a>
+      <h1>Nines trick <span>· the digits of 9 × x</span></h1>
+      <button class="gear" id="gear" aria-expanded="false" aria-controls="opts">⚙ Options</button>
+    </div>
+
+    <div class="panel opts pop" id="opts" hidden>
+      <div class="opt">
+        <span class="k">colors</span>
+        <div class="colors">
+          <span class="swatch x"><span class="dot"><input type="color" data-k="x" aria-label="color for x"></span>x</span>
+          <span class="swatch d1"><span class="dot"><input type="color" data-k="d1" aria-label="color for D1"></span>D1</span>
+          <span class="swatch d2"><span class="dot"><input type="color" data-k="d2" aria-label="color for D2"></span>D2</span>
+          <button class="mini" id="creset">reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel rule" id="rule" aria-live="polite"></div>
+
+    <div class="ctl">
+      <div class="seg" role="radiogroup" aria-label="multiply or divide">
+        <input type="radio" name="op" id="opm" value="m" checked><label for="opm" title="multiply">×</label>
+        <input type="radio" name="op" id="opd" value="d"><label for="opd" title="divide">÷</label>
+      </div>
+      <div class="picker x" id="px">
+        <span class="tag" id="ptag"><b>x</b> · how many nines</span>
+        <span class="dot" title="pick a color"><input type="color" data-k="x" aria-label="color for x"></span>
+        <button class="pm" data-d="-1" aria-label="decrease x"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <input type="number" min="1" max="1000" value="7" inputmode="numeric" aria-label="x">
+        <button class="pm" data-d="1" aria-label="increase x"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const { $, bump, numberPicker, colorPicker, popovers } = doodle;
+
+  // div: show the table backwards, 63 ÷ 9 = 7. That shortcut needs a two-digit
+  // answer, so dividing keeps x at 10 or less.
+  const st = { x: 7, div: false };
+  const maxX = () => st.div ? 10 : 1000;
+
+  const X = n => `<span class="x">${n}</span>`, D1 = n => `<span class="d1">${n}</span>`, D2 = n => `<span class="d2">${n}</span>`;
+
+  // the two digits of 9 × x for x ≤ 10, with 9 × 1 written 09
+  const digits = x => { const d1 = x - 1; return `<span class="d1${d1 ? '' : ' zero'}">${d1}</span>${D2(9 - d1)}`; };
+
+  // add up the digits, again and again, until one digit is left: ['8 + 9 + 1 = 18', '1 + 8 = 9']
+  function digitSums(n) {
+    const steps = [];
+    while (n >= 10) {
+      const ds = [...String(n)].map(Number), s = ds.reduce((a, b) => a + b);
+      steps.push(`${ds.join(' + ')} = ${s}`);
+      n = s;
+    }
+    return steps;
+  }
+
+  // ---- the table: ten rows, the block of ten that holds x ----
+  function table() {
+    const { x, div } = st, lo = Math.floor((x - 1) / 10) * 10 + 1, tb = $('table');
+    tb.replaceChildren();
+    tb.classList.toggle('wide', lo > 1);
+    for (let k = lo; k < lo + 10; k++) {
+      const r = document.createElement('div');
+      r.className = 'row' + (k === x ? ' on' : ''); r.setAttribute('role', 'listitem');
+      const ans = lo === 1 ? digits(k) : 9 * k;
+      r.innerHTML = div
+        ? `<span class="n">${ans}</span><span class="op">÷</span><span>9</span><span class="op">=</span><span class="n x">${k}</span>`
+        : `<span>9</span><span class="op">×</span><span class="n x">${k}</span><span class="op">=</span><span class="n">${ans}</span>`;
+      r.addEventListener('click', () => setX(k));
+      tb.appendChild(r);
+      // past the first ten, the picked row opens to show its digits added up
+      if (k === x && !div && lo > 1) {
+        r.classList.add('open');
+        const m = document.createElement('div');
+        m.className = 'sums';
+        m.innerHTML = digitSums(9 * k).map(t => `<span>${t}</span>`).join('');
+        tb.appendChild(m);
+      }
+    }
+  }
+
+  // ---- the rule, with this x plugged in ----
+  function rule() {
+    const { x, div } = st, d1 = x - 1, d2 = 9 - d1;
+    const lines = div ? [`${D1(d1)} + ${D2(d2)} = 9`, `${digits(x)} ÷ 9 = ${D1(d1)} + 1 = ${X(x)}`]
+                : x <= 10 ? [`${X(x)} − 1 = ${D1(d1)}`, `9 − ${D1(d1)} = ${D2(d2)}`, `${D1(d1)} + ${D2(d2)} = 9`]
+                : [];   // bigger x: the digit sums open up in the table instead
+    $('rule').innerHTML = lines.map(l => `<span>${l}</span>`).join('');
+    $('rule').hidden = !lines.length;
+  }
+
+  function show() { table(); rule(); }
+
+  // ---- controls -----------------------------------------------------------------
+  const setX = numberPicker($('px'), { get: () => st.x, max: maxX, onChange: v => {
+    const moved = v !== st.x;
+    st.x = v; show();
+    if (moved) bump(document.querySelector('.row.on > :last-child'));
+  } });
+
+  document.querySelectorAll('input[name=op]').forEach(r => r.addEventListener('change', () => {
+    st.div = $('opd').checked;
+    $('ptag').innerHTML = st.div ? '<b>x</b> · the answer' : '<b>x</b> · how many nines';
+    setX(st.x);   // clamps x when switching to ÷, and redraws
+  }));
+
+  popovers([[$('gear'), $('opts')]]);
+  $('creset').addEventListener('click', colorPicker('nines.colors', ['x', 'd1', 'd2']).reset);
+
+  show();
+})();
+</script>
+</body>
+</html>

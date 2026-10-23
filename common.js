@@ -32,11 +32,12 @@
 
   // Wire up a .picker (see common.css): typing, the + / − buttons (hold to repeat),
   // and the scroll wheel anywhere over it. `get` reads the current value; `onChange`
-  // gets each new whole number in [min, max]. Returns `set`, to change it from code.
+  // gets each new whole number in [min, max]; `max` may be a function, for a limit that
+  // changes. Returns `set`, to change it from code.
   function numberPicker(root, { get, onChange, min = 1, max = 999 }) {
     const num = root.querySelector('input[type=number]');
     const set = v => {
-      v = clamp(Math.round(v) || min, min, max);
+      v = clamp(Math.round(v) || min, min, typeof max === 'function' ? max() : max);
       if (v !== get()) bump(num);
       if (document.activeElement !== num || +num.value !== v) num.value = v;
       onChange(v);
