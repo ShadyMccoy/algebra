@@ -6,7 +6,7 @@
 <title>Polar Drift</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap">
 <style>
-/* Layout: full-bleed canvas, mode tabs top-left, one control panel bottom-left. Single dark look by design. */
+/* Layout: full-bleed canvas, mode tabs top-left, a Controls pill bottom-left that opens the panel above it. Single dark look by design. */
 :root {
   --bg: #000000;
   --fg: #c4cadb;
@@ -35,8 +35,8 @@ canvas {
   cursor: crosshair;
 }
 button { font: inherit; }
-.tabs, .panel { transition: opacity 0.6s; }
-body.idle .tabs, body.idle .panel { opacity: 0; pointer-events: none; }
+.tabs, .panel, .pill { transition: opacity 0.6s; }
+body.idle .tabs, body.idle .panel, body.idle .pill { opacity: 0; pointer-events: none; }
 body.idle canvas { cursor: none; }
 .tabs {
   position: fixed;
@@ -47,7 +47,7 @@ body.idle canvas { cursor: none; }
   flex-wrap: wrap;
   gap: 6px;
 }
-.tabs button, .seg button {
+.tabs button, .seg button, .pill {
   color: var(--muted);
   background: var(--panel);
   border: 1px solid var(--edge);
@@ -56,14 +56,23 @@ body.idle canvas { cursor: none; }
   cursor: pointer;
   letter-spacing: 0.02em;
 }
-.tabs button:hover, .seg button:hover { color: var(--fg); }
-.tabs button[aria-pressed="true"], .seg button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.tabs button:focus-visible, .seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tabs button:hover, .seg button:hover, .pill:hover { color: var(--fg); }
+.tabs button[aria-pressed="true"], .seg button[aria-pressed="true"], .pill[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.tabs button:focus-visible, .seg button:focus-visible, .pill:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tabs kbd { font: inherit; color: var(--muted); margin-right: 6px; }
-.panel {
+.pill {
   position: fixed;
   left: max(16px, env(safe-area-inset-left, 0px));
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+.panel {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  max-height: calc(100% - 120px);
+  overflow-y: auto;
   width: min(460px, calc(100% - 32px));
   box-sizing: border-box;
   padding: 10px 12px;
@@ -74,6 +83,7 @@ body.idle canvas { cursor: none; }
   border: 1px solid var(--edge);
   border-radius: 4px;
 }
+.panel[hidden] { display: none; }
 .panel .dim { color: var(--muted); }
 .panel .row { display: block; }
 .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
@@ -95,7 +105,8 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
 <canvas id="c" aria-label="Animated pattern of colored circles and lines, steered by the pointer or by sound"></canvas>
 <nav class="tabs" id="tabs" aria-label="Variation"><a href="index.html">← Doodles</a></nav>
 
-<div class="panel">
+<button type="button" class="pill" id="pill" aria-expanded="false" aria-controls="panel">Controls</button>
+<div class="panel" id="panel" hidden>
   <span class="row" id="blurb"></span>
   <span class="row dim" id="read"></span>
   <div class="ctl">
@@ -122,7 +133,7 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
     <label for="fill">Fill <input type="range" id="fill" min="0" max="100" value="75"> <output id="fillOut" for="fill">75</output></label>
   </div>
   <span class="row dim" id="srcInfo">Pointer left and right steers. Demo beat and audio files play sound.</span>
-  <span class="row dim">Click the picture or press space to pause. Keys 1 to 4 switch variation, F for fullscreen. Controls hide after a few seconds.</span>
+  <span class="row dim">Click the picture or press space to pause. Keys 1 to 3 switch variation, F for fullscreen, C or Esc to close this. Controls hide after a few seconds.</span>
 </div>
 
 <script>
@@ -132,7 +143,7 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
   var $ = function (id) { return document.getElementById(id); };
   var TAU = Math.PI * 2;
 
-  var W = 0, H = 0, mouse = 0.3, mode = 3;
+  var W = 0, H = 0, mouse = 0.3, mode = 2;
   var paused = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var simHz = 24, smooth = true, gain = 1.4, steerSens = 1.0, fill = 0.75;
   var acc = 0, since = 0, lastNow = 0, simTime = 0, CT = 0, AL = 1, PX = 0, PY = 0;
@@ -193,38 +204,6 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
           ctx.arc(PX, PY, rad, 0, TAU);
           ctx.fill();
           ctx.stroke();
-        }
-      }
-    },
-    {
-      name: 'Sunflower',
-      blurb: 'Radius grows like the square root of n and each step turns by the golden angle. Center is exactly the golden angle. Treble spins it.',
-      rot: 0, c: 10, read: '',
-      init: function () { this.rot = 0; },
-      compute: function (P, dt) {
-        var N = 900, R = Math.min(W, H) * 0.46, c = R / Math.sqrt(N);
-        this.c = c;
-        var d = (inp.steer - 0.5) * 0.06;
-        var ang = 2.399963229728653 + d;
-        this.rot += (0.003 + inp.shimmer * 0.012) * dt * 40;
-        for (var n = 1; n <= N; n++) {
-          var r = c * Math.sqrt(n), a = n * ang + this.rot;
-          P.x[n - 1] = W / 2 + r * Math.cos(a);
-          P.y[n - 1] = H / 2 + r * Math.sin(a);
-        }
-        P.n = N;
-        this.read = 'offset from golden angle ' + (d * 180 / Math.PI).toFixed(2) + '°';
-      },
-      render: function (fd) {
-        fade(0.28, fd);
-        var rad = this.c * 0.85 * (1 + 0.45 * inp.kick);
-        var lt = Math.min(75, 60 * (0.7 + 0.5 * inp.level));
-        for (var i = 0; i < curr.n; i++) {
-          ctx.fillStyle = 'hsl(' + (((i + 1) * 0.4 + CT * 0.8) % 360) + ',80%,' + lt + '%)';
-          pos(i);
-          ctx.beginPath();
-          ctx.arc(PX, PY, rad, 0, TAU);
-          ctx.fill();
         }
       }
     },
@@ -590,6 +569,11 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
     clearTimeout(idleT);
     idleT = setTimeout(function () { document.body.classList.add('idle'); }, 4000);
   }
+  function showPanel(open) {
+    $('panel').hidden = !open;
+    $('pill').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('pill').textContent = open ? 'Hide controls' : 'Controls';
+  }
   function togglePause() {
     paused = !paused;
     if (ac) { if (paused) ac.suspend(); else ac.resume(); }
@@ -608,6 +592,7 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
     stopSource();
     setSource('mouse', 'Pointer left and right steers. Demo beat and audio files play sound.');
   });
+  $('pill').addEventListener('click', function () { showPanel($('panel').hidden); });
   $('src-demo').addEventListener('click', startDemo);
   $('src-file').addEventListener('click', function () { $('file').click(); });
   $('src-sys').addEventListener('click', function () {
@@ -649,6 +634,8 @@ output { font-variant-numeric: tabular-nums; min-width: 2ch; }
   window.addEventListener('keydown', function (e) {
     if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { e.preventDefault(); togglePause(); }
     if ((e.key === 'f' || e.key === 'F') && e.target.tagName !== 'INPUT') toggleFs();
+    if ((e.key === 'c' || e.key === 'C') && e.target.tagName !== 'INPUT') showPanel($('panel').hidden);
+    if (e.key === 'Escape') showPanel(false);
     var k = parseInt(e.key, 10);
     if (k >= 1 && k <= modes.length && e.target.tagName !== 'INPUT') setMode(k - 1);
   });
