@@ -94,7 +94,7 @@
       <p>In 9 × x, the first digit is x − 1, and the two digits add to 9.</p>
     </a>
     <a class="card" href="polar-drift.html">
-      <svg viewBox="0 0 200 110" aria-hidden="true" id="sunflower"></svg>
+      <svg viewBox="0 0 200 110" aria-hidden="true" id="drift"></svg>
       <h2>Polar drift</h2>
       <p>Dots and lines placed by turning a fixed angle each step. Steer the angle with the pointer or with music.</p>
     </a>
@@ -117,19 +117,21 @@
       svg.appendChild(rect);
     }
   })();
-  // a sunflower: dot n sits at radius √n, turned n golden angles round
+  // the String variation: point n sits at radius ~ n^0.8, turned n × 2.9 radians, joined in order
   (() => {
-    const svg = document.getElementById('sunflower'), ns = 'http://www.w3.org/2000/svg';
-    const hues = ['var(--blue)', 'var(--teal)', 'var(--purple)'];
-    for (let n = 1; n <= 160; n++) {
-      const r = 3.8 * Math.sqrt(n), a = n * 2.399963229728653;
-      const dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('cx', (100 + r * Math.cos(a)).toFixed(1));
-      dot.setAttribute('cy', (55 + r * Math.sin(a)).toFixed(1));
-      dot.setAttribute('r', 2.6);
-      dot.setAttribute('fill', hues[n % 3]);
-      svg.appendChild(dot);
+    const svg = document.getElementById('drift'), ns = 'http://www.w3.org/2000/svg';
+    const N = 160, pts = [];
+    for (let n = 0; n <= N; n++) {
+      const r = 50 * Math.pow(n / N, 0.8), a = n * 2.9;
+      pts.push((100 + r * Math.cos(a)).toFixed(1) + ',' + (55 + r * Math.sin(a)).toFixed(1));
     }
+    const line = document.createElementNS(ns, 'polyline');
+    line.setAttribute('points', pts.join(' '));
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', 'var(--purple)');
+    line.setAttribute('stroke-opacity', '.6');
+    line.setAttribute('stroke-width', '.8');
+    svg.appendChild(line);
   })();
 </script>
 </body>
