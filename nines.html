@@ -28,7 +28,7 @@
     font-size: min(6.6cqh, 11cqw); font-weight: 700;
     font-variant-numeric: tabular-nums; line-height: 1.32;
   }
-  #table.wide { font-size: min(6.6cqh, 8cqw); }   /* room for 9 × 999 = 8991 */
+  #table.wide { font-size: min(5.9cqh, 8cqw); }   /* room for 9 × 999 = 8991, and the sums under it */
   .row { display: contents; cursor: pointer; }
   /* the gaps live inside the cells, so a picked row reads as one band */
   .row > span { padding: 0 .18em; }
@@ -42,6 +42,14 @@
   .row:not(.on) > span { opacity: .55; }
   .row.on > span { background: color-mix(in srgb, var(--x) 12%, transparent); opacity: 1; }
   .row:hover:not(.on) > span { opacity: .8; }
+  /* the picked row opened up: its digit sums underneath, in the same band */
+  .row.open > :first-child { border-bottom-left-radius: 0; }
+  .row.open > :last-child { border-bottom-right-radius: 0; }
+  .sums {
+    grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-end;
+    font-size: .55em; line-height: 1.4; padding: .1em .8em .4em;
+    background: color-mix(in srgb, var(--x) 12%, transparent); border-radius: 0 0 .45em .45em;
+  }
 
   /* ---- the rule, with this x plugged in ---- */
   .rule { display: flex; flex-direction: column; gap: 2px;
@@ -89,7 +97,7 @@
         <span class="tag" id="ptag"><b>x</b> · how many nines</span>
         <span class="dot" title="pick a color"><input type="color" data-k="x" aria-label="color for x"></span>
         <button class="pm" data-d="-1" aria-label="decrease x"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
-        <input type="number" min="1" max="999" value="7" inputmode="numeric" aria-label="x">
+        <input type="number" min="1" max="1000" value="7" inputmode="numeric" aria-label="x">
         <button class="pm" data-d="1" aria-label="increase x"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
       </div>
     </div>
@@ -106,7 +114,7 @@
   // div: show the table backwards, 63 ÷ 9 = 7. That shortcut needs a two-digit
   // answer, so dividing keeps x at 10 or less.
   const st = { x: 7, div: false };
-  const maxX = () => st.div ? 10 : 999;
+  const maxX = () => st.div ? 10 : 1000;
 
   const X = n => `<span class="x">${n}</span>`, D1 = n => `<span class="d1">${n}</span>`, D2 = n => `<span class="d2">${n}</span>`;
 
@@ -138,6 +146,14 @@
         : `<span>9</span><span class="op">×</span><span class="n x">${k}</span><span class="op">=</span><span class="n">${ans}</span>`;
       r.addEventListener('click', () => setX(k));
       tb.appendChild(r);
+      // past the first ten, the picked row opens to show its digits added up
+      if (k === x && !div && lo > 1) {
+        r.classList.add('open');
+        const m = document.createElement('div');
+        m.className = 'sums';
+        m.innerHTML = digitSums(9 * k).map(t => `<span>${t}</span>`).join('');
+        tb.appendChild(m);
+      }
     }
   }
 
@@ -146,8 +162,9 @@
     const { x, div } = st, d1 = x - 1, d2 = 9 - d1;
     const lines = div ? [`${D1(d1)} + ${D2(d2)} = 9`, `${digits(x)} ÷ 9 = ${D1(d1)} + 1 = ${X(x)}`]
                 : x <= 10 ? [`${X(x)} − 1 = ${D1(d1)}`, `9 − ${D1(d1)} = ${D2(d2)}`, `${D1(d1)} + ${D2(d2)} = 9`]
-                : [`9 × ${X(x)} = ${9 * x}`, ...digitSums(9 * x)];
+                : [];   // bigger x: the digit sums open up in the table instead
     $('rule').innerHTML = lines.map(l => `<span>${l}</span>`).join('');
+    $('rule').hidden = !lines.length;
   }
 
   function show() { table(); rule(); }
